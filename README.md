@@ -6,7 +6,7 @@ If you are new to REST, you can understand the basics at http://en.wikipedia.org
 
 Getting an API key
 ----------------
-Any user can get their own API key by visiting the [Manage profile] (https://help.proofhub.com/swift/others/how-to-access-your-api-key#getting-your-api-key) dropdown and clicking 5 times on the profile picture. The API key of the logged in user will be displayed in the pop up window opened.
+Any user can get their own API key by visiting the [Manage profile](https://help.proofhub.com/swift/others/how-to-access-your-api-key#getting-your-api-key) dropdown and clicking 5 times on the profile picture. The API key of the logged in user will be displayed in the pop up window opened.
 
 Making a request
 ----------------
