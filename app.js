@@ -9,8 +9,7 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ================= PROJECT FINDER ================= */
-/* This is the version that WORKED */
+/* ================= PROJECT DETECTOR ================= */
 
 function findProjectsDeep(data) {
   const results = [];
@@ -19,11 +18,7 @@ function findProjectsDeep(data) {
   function walk(node) {
     if (!node || typeof node !== "object") return;
 
-    if (
-      typeof node.id === "number" &&
-      typeof node.title === "string" &&
-      !seen.has(node.id)
-    ) {
+    if (node.id && node.title && !seen.has(node.id)) {
       seen.add(node.id);
       results.push(node);
     }
@@ -41,13 +36,102 @@ function findProjectsDeep(data) {
 
 /* ================= FORMATTERS ================= */
 
-const formatDate = d => (d ? new Date(d).toLocaleString() : "-");
+const formatDate = d => (d ? new Date(d).toLocaleDateString() : "-");
+const formatStatus = s => s?.id ?? "-";
+const formatCategory = c => c?.id ?? "-";
+const formatUser = u => u?.id ?? "-";
+
+function formatCategoryName(p) {
+  return p.category_name && p.category_name.trim()
+    ? p.category_name
+    : "—";
+}
 
 function formatAssigned(a) {
   if (!Array.isArray(a) || !a.length) return "-";
-  return a.map(id => `<div class="assigned-id">${id}</div>`).join("");
+  return `
+    <div class="assigned-container">
+      ${a.map(id => `<div class="assigned-id">${id}</div>`).join("")}
+    </div>
+  `;
 }
 
-function formatCategoryName(p) {
-  if (p.category_name && p.category_name.trim()) return p.category_name;
-  if (p.category?.
+/* ================= JSON OUTPUT ================= */
+
+function setOutput(data) {
+  const json = JSON.stringify(data, null, 2)
+    .replace(/"(.*?)":/g, '<span class="json-key">"$1"</span>:')
+    .replace(/: "(.*?)"/g, ': <span class="json-string">"$1"</span>')
+    .replace(/: (\d+)/g, ': <span class="json-number">$1</span>')
+    .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+    .replace(/: null/g, ': <span class="json-null">null</span>');
+
+  document.getElementById("output").innerHTML = json;
+}
+
+/* ================= PROJECTS ================= */
+
+async function fetchProjects() {
+  const json = await apiGet("projects");
+  const projects = findProjectsDeep(json);
+
+  const table = document.getElementById("projectsTable");
+  table.innerHTML = "";
+
+  projects.forEach(p => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${p.id}</td>
+      <td>${p.title}</td>
+      <td>${p.description || "-"}</td>
+      <td>${formatDate(p.start_date)}</td>
+      <td>${formatDate(p.end_date)}</td>
+      <td>${formatStatus(p.status)}</td>
+      <td>${formatAssigned(p.assigned)}</td>
+      <td>${formatCategory(p.category)}</td>
+      <td>${formatUser(p.creator)}</td>
+      <td>${formatUser(p.manager)}</td>
+      <td>${formatCategoryName(p)}</td>
+      <td>${formatDate(p.created_at)}</td>
+      <td>${formatDate(p.updated_at)}</td>
+    `;
+    row.onclick = () => setOutput(p);
+    table.appendChild(row);
+  });
+
+  setOutput(json);
+}
+
+async function fetchProjectById() {
+  const id = document.getElementById("projectIdInput").value.trim();
+  if (!id) return alert("Enter Project ID");
+
+  const json = await apiGet(`projects/${id}`);
+  const projects = findProjectsDeep(json);
+
+  const table = document.getElementById("projectsTable");
+  table.innerHTML = "";
+
+  projects.forEach(p => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${p.id}</td>
+      <td>${p.title}</td>
+      <td>${p.description || "-"}</td>
+      <td>${formatDate(p.start_date)}</td>
+      <td>${formatDate(p.end_date)}</td>
+      <td>${formatStatus(p.status)}</td>
+      <td>${formatAssigned(p.assigned)}</td>
+      <td>${formatCategory(p.category)}</td>
+      <td>${formatUser(p.creator)}</td>
+      <td>${formatUser(p.manager)}</td>
+      <td>${formatCategoryName(p)}</td>
+      <td>${formatDate(p.created_at)}</td>
+      <td>${formatDate(p.updated_at)}</td>
+    `;
+    row.onclick = () => setOutput(p);
+    table.appendChild(row);
+  });
+
+  setOutput(json);
+}
