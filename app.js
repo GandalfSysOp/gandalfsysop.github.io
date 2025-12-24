@@ -9,10 +9,10 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ================= FIND PROJECTS ================= */
+/* ================= PROJECT DETECTOR ================= */
 
 function findProjectsDeep(data) {
-  const found = [];
+  const results = [];
   const seen = new Set();
 
   function walk(node) {
@@ -20,21 +20,19 @@ function findProjectsDeep(data) {
 
     if (node.id && node.title && !seen.has(node.id)) {
       seen.add(node.id);
-      found.push(node);
+      results.push(node);
     }
 
     Object.values(node).forEach(walk);
   }
 
   walk(data);
-  return found;
+  return results;
 }
 
 /* ================= FORMATTERS ================= */
 
-const formatDate = d => d ? new Date(d).toLocaleDateString() : "—";
-const formatUser = u => u?.id ?? "—";
-const formatStatus = s => s?.id ?? "—";
+const formatDate = d => (d ? new Date(d).toLocaleDateString() : "—");
 
 function formatCategoryName(p) {
   if (p.category_name && p.category_name.trim()) return p.category_name;
@@ -42,44 +40,64 @@ function formatCategoryName(p) {
   return "—";
 }
 
-/* ================= RENDER ================= */
+/* ================= JSON OUTPUT ================= */
 
-function renderList(projects) {
-  const list = document.getElementById("projectList");
-  list.innerHTML = "";
-
-  projects.forEach(p => {
-    const div = document.createElement("div");
-    div.className = "project-item";
-    div.innerHTML = `
-      <div class="project-title">${p.title}</div>
-      <div class="project-id">${p.id}</div>
-    `;
-    div.onclick = () => renderDetails(p);
-    list.appendChild(div);
-  });
+function setOutput(data) {
+  document.getElementById("output").textContent =
+    JSON.stringify(data, null, 2);
 }
 
-function renderDetails(p) {
-  document.getElementById("details").innerHTML = `
-    <div class="field"><div class="label">Title</div><div class="value">${p.title}</div></div>
-    <div class="field"><div class="label">Description</div><div class="value">${p.description || "—"}</div></div>
-    <div class="field"><div class="label">Start Date</div><div class="value">${formatDate(p.start_date)}</div></div>
-    <div class="field"><div class="label">End Date</div><div class="value">${formatDate(p.end_date)}</div></div>
-    <div class="field"><div class="label">Status</div><div class="value">${formatStatus(p.status)}</div></div>
-    <div class="field"><div class="label">Category</div><div class="value">${formatCategoryName(p)}</div></div>
-    <div class="field"><div class="label">Creator</div><div class="value">${formatUser(p.creator)}</div></div>
-    <div class="field"><div class="label">Manager</div><div class="value">${formatUser(p.manager)}</div></div>
-    <div class="field">
-      <div class="label">Assigned</div>
-      ${(p.assigned || []).map(id => `<span class="assigned-id">${id}</span>`).join("") || "—"}
-    </div>
-    <div class="field"><div class="label">Created</div><div class="value">${formatDate(p.created_at)}</div></div>
-    <div class="field"><div class="label">Updated</div><div class="value">${formatDate(p.updated_at)}</div></div>
-  `;
+/* ================= TABLE RENDER ================= */
 
-  document.getElementById("output").textContent =
-    JSON.stringify(p, null, 2);
+function renderTable(projects) {
+  const table = document.getElementById("projectsTable");
+  table.innerHTML = "";
+
+  projects.forEach(p => {
+    const row = document.createElement("tr");
+
+    row.innerHTML = `
+      <!-- Project -->
+      <td>
+        <div class="cell-title">${p.title}</div>
+        <div class="cell-sub">ID: ${p.id}</div>
+      </td>
+
+      <!-- Dates -->
+      <td>
+        <div class="cell-sub">Start: ${formatDate(p.start_date)}</div>
+        <div class="cell-sub">End: ${formatDate(p.end_date)}</div>
+      </td>
+
+      <!-- Status -->
+      <td>
+        <div class="cell-sub">${p.status?.id ?? "—"}</div>
+      </td>
+
+      <!-- People -->
+      <td>
+        <div class="cell-sub">Creator: ${p.creator?.id ?? "—"}</div>
+        <div class="cell-sub">Manager: ${p.manager?.id ?? "—"}</div>
+      </td>
+
+      <!-- Assigned -->
+      <td>
+        <div class="assigned-container">
+          ${(p.assigned || []).length
+            ? p.assigned.map(id => `<div class="assigned-id">${id}</div>`).join("")
+            : "—"}
+        </div>
+      </td>
+
+      <!-- Category -->
+      <td>
+        ${formatCategoryName(p)}
+      </td>
+    `;
+
+    row.onclick = () => setOutput(p);
+    table.appendChild(row);
+  });
 }
 
 /* ================= ACTIONS ================= */
@@ -87,7 +105,8 @@ function renderDetails(p) {
 async function fetchProjects() {
   const json = await apiGet("projects");
   const projects = findProjectsDeep(json);
-  renderList(projects);
+  renderTable(projects);
+  setOutput(json);
 }
 
 async function fetchProjectById() {
@@ -96,6 +115,6 @@ async function fetchProjectById() {
 
   const json = await apiGet(`projects/${id}`);
   const projects = findProjectsDeep(json);
-  renderList(projects);
-  if (projects[0]) renderDetails(projects[0]);
+  renderTable(projects);
+  setOutput(json);
 }
