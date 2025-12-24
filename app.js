@@ -20,12 +20,33 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ========= SAFE EXTRACTOR ========= */
-function extractProjects(json) {
-  if (Array.isArray(json)) return json;
-  if (Array.isArray(json.data?.projects)) return json.data.projects;
-  if (Array.isArray(json.projects)) return json.projects;
-  if (Array.isArray(json.data)) return json.data;
+/* ========= CRITICAL NORMALIZER ========= */
+function normalizeProjects(json) {
+  // Case 1: data.projects is an ARRAY
+  if (Array.isArray(json?.data?.projects)) {
+    return json.data.projects;
+  }
+
+  // Case 2: data.projects is an OBJECT (keyed by id)
+  if (json?.data?.projects && typeof json.data.projects === "object") {
+    return Object.values(json.data.projects);
+  }
+
+  // Case 3: projects is an ARRAY
+  if (Array.isArray(json?.projects)) {
+    return json.projects;
+  }
+
+  // Case 4: projects is an OBJECT
+  if (json?.projects && typeof json.projects === "object") {
+    return Object.values(json.projects);
+  }
+
+  // Case 5: single project response
+  if (json?.data?.id) {
+    return [json.data];
+  }
+
   return [];
 }
 
@@ -58,10 +79,17 @@ function setOutput(data) {
 /* ========= PROJECTS ========= */
 async function fetchProjects() {
   const json = await apiGet("projects");
-  const projects = extractProjects(json);
+  const projects = normalizeProjects(json);
 
   const table = document.getElementById("projectsTable");
   table.innerHTML = "";
+
+  if (!projects.length) {
+    table.innerHTML =
+      `<tr><td colspan="13" class="text-center text-muted">No projects found</td></tr>`;
+    setOutput(json);
+    return;
+  }
 
   projects.forEach(p => {
     const row = document.createElement("tr");
@@ -90,6 +118,33 @@ async function fetchProjects() {
 async function fetchProjectById() {
   const id = document.getElementById("projectIdInput").value;
   if (!id) return alert("Enter Project ID");
+
   const json = await apiGet(`projects/${id}`);
-  setOutput(json.data || json);
+  const projects = normalizeProjects(json);
+
+  const table = document.getElementById("projectsTable");
+  table.innerHTML = "";
+
+  projects.forEach(p => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${p.id}</td>
+      <td>${p.title}</td>
+      <td>${p.description || "-"}</td>
+      <td>${formatDate(p.start_date)}</td>
+      <td>${formatDate(p.end_date)}</td>
+      <td>${formatStatus(p.status)}</td>
+      <td>${formatAssigned(p.assigned)}</td>
+      <td>${formatCategory(p.category)}</td>
+      <td>${formatUser(p.creator)}</td>
+      <td>${formatUser(p.manager)}</td>
+      <td>${p.category_name || "-"}</td>
+      <td>${formatDate(p.created_at)}</td>
+      <td>${formatDate(p.updated_at)}</td>
+    `;
+    row.onclick = () => setOutput(p);
+    table.appendChild(row);
+  });
+
+  setOutput(json);
 }
