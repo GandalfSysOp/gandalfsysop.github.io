@@ -1,230 +1,108 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>ProofHub Admin Dashboard</title>
+<meta charset="UTF-8">
+<title>ProofHub Dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <!-- Bootstrap + Icons -->
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<!-- Bootstrap & Icons -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
-  <style>
+<style>
     body {
-      background: #f3f6fb;
-      font-size: 13px;
-      color: #0f172a;
+        min-height: 100vh;
+        display: flex;
+        overflow-x: hidden;
     }
 
-    /* ===== HEADER ===== */
-    .app-header {
-      height: 60px;
-      background: linear-gradient(90deg, #4f46e5, #6366f1);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      padding: 0 24px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    /* Sidebar */
+    #sidebar {
+        min-width: 220px;
+        max-width: 220px;
+        background: #343a40;
+        color: #fff;
+    }
+    #sidebar .nav-link {
+        color: #fff;
+    }
+    #sidebar .nav-link:hover {
+        background: #495057;
     }
 
-    .logo {
-      font-weight: 700;
-      font-size: 16px;
-      letter-spacing: 0.4px;
+    /* Table */
+    .table-responsive {
+        overflow-x: auto;
+    }
+    td, th {
+        white-space: normal !important;
+        word-wrap: break-word;
     }
 
-    /* ===== LAYOUT ===== */
-    .layout {
-      display: grid;
-      grid-template-columns: 260px 1fr;
-      height: calc(100vh - 60px);
+    /* JSON Box */
+    pre {
+        background: #1e1e1e;
+        color: #dcdcdc;
+        padding: 15px;
+        border-radius: 6px;
+        max-height: 350px;
+        overflow-y: auto;
     }
-
-    /* ===== SIDEBAR ===== */
-    .sidebar {
-      background: #020617;
-      color: #cbd5e1;
-      padding: 20px;
-    }
-
-    .sidebar h6 {
-      font-size: 11px;
-      text-transform: uppercase;
-      color: #64748b;
-      margin-bottom: 12px;
-    }
-
-    .nav-item {
-      padding: 10px 12px;
-      border-radius: 8px;
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-    }
-
-    .nav-item.active,
-    .nav-item:hover {
-      background: #1e293b;
-      color: #fff;
-    }
-
-    /* ===== CONTENT ===== */
-    .content {
-      padding: 24px;
-      overflow-y: auto;
-    }
-
-    /* ===== INFO CARDS ===== */
-    .stat-card {
-      background: #fff;
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 10px 20px rgba(15,23,42,0.08);
-    }
-
-    .stat-title {
-      font-size: 11px;
-      color: #64748b;
-      text-transform: uppercase;
-    }
-
-    .stat-value {
-      font-size: 20px;
-      font-weight: 700;
-      margin-top: 4px;
-    }
-
-    /* ===== TABLE ===== */
-    table {
-      width: 100%;
-    }
-
-    thead th {
-      background: #eef2ff;
-      font-size: 11px;
-      text-transform: uppercase;
-      padding: 8px;
-    }
-
-    tbody tr:hover {
-      background: #eef2ff;
-      cursor: pointer;
-    }
-
-    td {
-      padding: 8px;
-      vertical-align: top;
-      white-space: normal;
-      word-break: break-word;
-    }
-
-    /* Assigned IDs */
-    .assigned-grid {
-      display: grid;
-      grid-template-columns: repeat(2, auto);
-      gap: 4px 6px;
-    }
-
-    .assigned-id {
-      background: #e0e7ff;
-      color: #3730a3;
-      padding: 2px 6px;
-      border-radius: 6px;
-      font-size: 11px;
-    }
-
-    /* ===== RAW JSON ===== */
-    .json-panel {
-      background: #020617;
-      color: #e5e7eb;
-      border-radius: 12px;
-      padding: 16px;
-      font-size: 12px;
-      max-height: 320px;
-      overflow: auto;
-    }
-  </style>
+</style>
 </head>
-
 <body>
 
-<!-- HEADER -->
-<div class="app-header">
-  <div class="logo">
-    <i class="bi bi-diagram-3-fill"></i> ProofHub Admin
-  </div>
-</div>
+<!-- Sidebar -->
+<nav id="sidebar" class="d-flex flex-column p-3">
+    <h4 class="text-center"><i class="fa-solid fa-chart-simple"></i> PH Dashboard</h4>
+    <hr>
+    <button class="btn btn-success w-100 mb-3" onclick="fetchProjects()">
+        <i class="fa-solid fa-database"></i> Fetch All Projects
+    </button>
+</nav>
 
-<!-- LAYOUT -->
-<div class="layout">
+<!-- Main Content -->
+<div class="container-fluid p-4">
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <h6>Navigation</h6>
-    <div class="nav-item active"><i class="bi bi-kanban"></i> Projects</div>
-    <div class="nav-item"><i class="bi bi-list-task"></i> Task Lists</div>
-    <div class="nav-item"><i class="bi bi-check2-square"></i> Tasks</div>
-    <div class="nav-item"><i class="bi bi-journal-text"></i> Notes</div>
-  </aside>
+    <!-- Header -->
+    <header class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Projects Overview</h2>
+    </header>
 
-  <!-- CONTENT -->
-  <main class="content">
-
-    <!-- STATS -->
-    <div class="row mb-4">
-      <div class="col-md-3">
-        <div class="stat-card">
-          <div class="stat-title">Total Projects</div>
-          <div class="stat-value" id="totalProjects">—</div>
-        </div>
-      </div>
-      <div class="col-md-3">
-        <div class="stat-card">
-          <div class="stat-title">Active Requests</div>
-          <div class="stat-value">API</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ACTION BAR -->
-    <div class="d-flex justify-content-between mb-3">
-      <h4>Projects</h4>
-      <div class="d-flex gap-2">
-        <input id="projectIdInput" class="form-control form-control-sm" placeholder="Project ID">
-        <button class="btn btn-outline-primary btn-sm" onclick="fetchProjectById()">Fetch Project</button>
-        <button class="btn btn-primary btn-sm" onclick="fetchProjects()">Fetch All</button>
-      </div>
-    </div>
-
-    <!-- TABLE -->
-    <div class="card mb-4">
-      <div class="card-body table-responsive">
-        <table class="table table-sm table-hover align-middle">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Title</th>
-              <th>Description</th>
-              <th>Start</th>
-              <th>End</th>
-              <th>Status</th>
-              <th>Assigned</th>
-              <th>Category</th>
-            </tr>
-          </thead>
-          <tbody id="projectsTable"></tbody>
+    <!-- Projects Table -->
+    <div class="table-responsive mb-4">
+        <table class="table table-bordered table-hover align-middle text-sm">
+            <thead class="table-light text-center">
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Description</th>
+                    <th>Start Date</th>
+                    <th>End Date</th>
+                    <th>Status</th>
+                    <th>Assigned</th>
+                    <th>Category ID</th>
+                    <th>Category Name</th>
+                    <th>Creator</th>
+                    <th>Manager</th>
+                    <th>Created At</th>
+                    <th>Updated At</th>
+                </tr>
+            </thead>
+            <tbody id="projectsTable" class="text-center"></tbody>
         </table>
-      </div>
     </div>
 
-    <!-- RAW JSON -->
-    <h5>Raw JSON Inspector</h5>
-    <div id="output" class="json-panel"></div>
+    <!-- JSON Output -->
+    <div>
+        <h5><i class="fa-solid fa-code"></i> Raw JSON Output</h5>
+        <pre id="rawJson"></pre>
+    </div>
 
-  </main>
 </div>
 
 <script src="app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>
