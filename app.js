@@ -9,32 +9,43 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ================= NORMALIZER ================= */
-/* This is the KEY fix */
+/* ================= ULTIMATE NORMALIZER ================= */
+/* Finds project-like objects ANYWHERE in the response */
 
-function normalizeProjects(json) {
-  // drill until we find something iterable
-  let cursor = json;
+function findProjectsDeep(data) {
+  const results = [];
+  const seen = new Set();
 
-  for (let i = 0; i < 4; i++) {
-    if (Array.isArray(cursor)) return cursor;
+  function walk(node) {
+    if (!node || typeof node !== "object") return;
 
-    if (cursor && typeof cursor === "object") {
-      if (Array.isArray(cursor.projects)) return cursor.projects;
-      if (cursor.projects && typeof cursor.projects === "object") {
-        return Object.values(cursor.projects);
+    // If it looks like a project, capture it
+    if (
+      node.id &&
+      typeof node.id === "number" &&
+      typeof node.title === "string"
+    ) {
+      if (!seen.has(node.id)) {
+        seen.add(node.id);
+        results.push(node);
       }
-      if (cursor.data) cursor = cursor.data;
-      else break;
+    }
+
+    // Walk children
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+    } else {
+      Object.values(node).forEach(walk);
     }
   }
 
-  return [];
+  walk(data);
+  return results;
 }
 
 /* ================= FORMATTERS ================= */
 
-const formatDate = d => d ? new Date(d).toLocaleDateString() : "-";
+const formatDate = d => (d ? new Date(d).toLocaleDateString() : "-");
 const formatStatus = s => s?.id ?? "-";
 const formatCategory = c => c?.id ?? "-";
 const formatUser = u => u?.id ?? "-";
@@ -61,14 +72,23 @@ function setOutput(data) {
 
 async function fetchProjects() {
   const json = await apiGet("projects");
-  const projects = normalizeProjects(json);
+
+  console.log("RAW RESPONSE:", json);
+
+  const projects = findProjectsDeep(json);
+
+  console.log("FOUND PROJECTS:", projects);
 
   const table = document.getElementById("projectsTable");
   table.innerHTML = "";
 
   if (!projects.length) {
     table.innerHTML =
-      `<tr><td colspan="13" class="text-center text-muted">No projects found</td></tr>`;
+      `<tr><td colspan="13" class="text-center text-danger">
+        Projects not detected in response
+      </td></tr>`;
+    setOutput(json);
+    return;
   }
 
   projects.forEach(p => {
@@ -100,7 +120,7 @@ async function fetchProjectById() {
   if (!id) return alert("Enter Project ID");
 
   const json = await apiGet(`projects/${id}`);
-  const projects = normalizeProjects(json);
+  const projects = findProjectsDeep(json);
 
   const table = document.getElementById("projectsTable");
   table.innerHTML = "";
