@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ProofHub Dashboard</title>
+  <title>ProofHub API Dashboard</title>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
 
@@ -10,95 +10,76 @@
     body {
       background: #f4f6fb;
       font-size: 13px;
-      margin: 0;
     }
 
-    .layout {
-      display: grid;
-      grid-template-columns: 340px 1fr;
-      height: 100vh;
-    }
-
-    /* LEFT LIST */
-    .list-panel {
-      background: #0f172a;
-      color: #e5e7eb;
-      padding: 16px;
-      overflow-y: auto;
-    }
-
-    .list-panel h5 {
-      margin-bottom: 12px;
-    }
-
-    .project-item {
-      background: #020617;
-      border-radius: 8px;
-      padding: 10px;
-      margin-bottom: 8px;
-      cursor: pointer;
-    }
-
-    .project-item:hover {
-      background: #1e293b;
-    }
-
-    .project-title {
-      font-weight: 600;
-      font-size: 13px;
-    }
-
-    .project-id {
-      font-size: 11px;
-      color: #94a3b8;
-    }
-
-    /* RIGHT DETAIL */
-    .detail-panel {
+    .container-fluid {
       padding: 24px;
-      overflow-y: auto;
     }
 
-    .detail-card {
-      background: #fff;
-      border-radius: 12px;
-      padding: 16px;
-      box-shadow: 0 8px 18px rgba(15,23,42,0.08);
-      margin-bottom: 16px;
+    h3 {
+      font-weight: 600;
     }
 
-    .field {
-      margin-bottom: 10px;
+    /* ===== TABLE (compact, no horizontal scroll) ===== */
+    table {
+      width: 100%;
+      table-layout: fixed;
     }
 
-    .label {
+    th {
       font-size: 11px;
       text-transform: uppercase;
       color: #64748b;
     }
 
-    .value {
-      font-weight: 500;
+    td {
+      vertical-align: top;
+      word-wrap: break-word;
+    }
+
+    tbody tr {
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(15,23,42,0.06);
+    }
+
+    tbody tr:hover {
+      box-shadow: 0 6px 14px rgba(15,23,42,0.12);
+      cursor: pointer;
+    }
+
+    .cell-title {
+      font-weight: 600;
+    }
+
+    .cell-sub {
+      font-size: 11px;
+      color: #64748b;
+    }
+
+    .assigned-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     .assigned-id {
       background: #eef2ff;
       color: #3730a3;
-      padding: 3px 8px;
+      padding: 2px 6px;
       border-radius: 6px;
       font-size: 11px;
-      margin-right: 6px;
-      margin-bottom: 6px;
-      display: inline-block;
+      width: fit-content;
     }
 
+    /* ===== JSON ===== */
     pre {
       background: #020617;
       color: #e5e7eb;
-      padding: 12px;
-      border-radius: 8px;
+      padding: 14px;
+      border-radius: 10px;
       font-size: 12px;
-      max-height: 300px;
+      max-height: 360px;
       overflow: auto;
     }
   </style>
@@ -106,34 +87,33 @@
 
 <body>
 
-<div class="layout">
+<div class="container-fluid">
 
-  <!-- LEFT: PROJECT LIST -->
-  <div class="list-panel">
-    <h5>Projects</h5>
-
-    <input id="projectIdInput" class="form-control form-control-sm mb-2" placeholder="Project ID">
-    <button class="btn btn-primary btn-sm w-100 mb-3" onclick="fetchProjectById()">Fetch Project</button>
-
-    <button class="btn btn-outline-light btn-sm w-100 mb-3" onclick="fetchProjects()">Fetch All</button>
-
-    <div id="projectList"></div>
+  <div class="d-flex justify-content-between mb-3">
+    <h3>Projects</h3>
+    <div class="d-flex gap-2">
+      <input id="projectIdInput" class="form-control form-control-sm" placeholder="Project ID">
+      <button class="btn btn-outline-primary btn-sm" onclick="fetchProjectById()">Fetch Project</button>
+      <button class="btn btn-primary btn-sm" onclick="fetchProjects()">Fetch All</button>
+    </div>
   </div>
 
-  <!-- RIGHT: DETAILS -->
-  <div class="detail-panel">
+  <table class="table table-borderless align-middle">
+    <thead>
+      <tr>
+        <th style="width:20%">Project</th>
+        <th style="width:15%">Dates</th>
+        <th style="width:10%">Status</th>
+        <th style="width:15%">People</th>
+        <th style="width:20%">Assigned</th>
+        <th style="width:20%">Category</th>
+      </tr>
+    </thead>
+    <tbody id="projectsTable"></tbody>
+  </table>
 
-    <div class="detail-card">
-      <h5>Project Details</h5>
-      <div id="details"></div>
-    </div>
-
-    <div class="detail-card">
-      <h6>Raw JSON</h6>
-      <pre id="output"></pre>
-    </div>
-
-  </div>
+  <h5 class="mt-4">Raw JSON</h5>
+  <pre id="output"></pre>
 
 </div>
 
