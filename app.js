@@ -1,62 +1,32 @@
-console.log("app.js loaded");
-
-/* ================= UI ================= */
-
-function showSection(id) {
-  document.querySelectorAll(".section").forEach(s =>
-    s.classList.remove("active")
-  );
-  document.getElementById(id).classList.add("active");
-
-  document.querySelectorAll(".nav-btn").forEach(b =>
-    b.classList.remove("active")
-  );
-  event.target.classList.add("active");
-}
-
-function copyOutput() {
-  navigator.clipboard.writeText(
-    document.getElementById("output").innerText
-  );
-}
-
-/* ================= API (Google Apps Script) ================= */
-
 const BASE_URL =
   "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
+/* ================= API ================= */
+
 async function apiGet(path) {
-  const url = `${BASE_URL}?path=${encodeURIComponent(path)}`;
-
-  const res = await fetch(url);
-  if (!res.ok) {
-    throw new Error(await res.text());
-  }
-
+  const res = await fetch(`${BASE_URL}?path=${encodeURIComponent(path)}`);
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-/* ================= NORMALIZER (IMPORTANT) ================= */
+/* ================= NORMALIZER ================= */
+/* This is the KEY fix */
 
 function normalizeProjects(json) {
-  if (Array.isArray(json?.data?.projects)) {
-    return json.data.projects;
-  }
+  // drill until we find something iterable
+  let cursor = json;
 
-  if (json?.data?.projects && typeof json.data.projects === "object") {
-    return Object.values(json.data.projects);
-  }
+  for (let i = 0; i < 4; i++) {
+    if (Array.isArray(cursor)) return cursor;
 
-  if (Array.isArray(json?.projects)) {
-    return json.projects;
-  }
-
-  if (json?.projects && typeof json.projects === "object") {
-    return Object.values(json.projects);
-  }
-
-  if (json?.data?.id) {
-    return [json.data];
+    if (cursor && typeof cursor === "object") {
+      if (Array.isArray(cursor.projects)) return cursor.projects;
+      if (cursor.projects && typeof cursor.projects === "object") {
+        return Object.values(cursor.projects);
+      }
+      if (cursor.data) cursor = cursor.data;
+      else break;
+    }
   }
 
   return [];
@@ -64,22 +34,17 @@ function normalizeProjects(json) {
 
 /* ================= FORMATTERS ================= */
 
-function formatDate(date) {
-  return date ? new Date(date).toLocaleDateString() : "-";
-}
-
-function formatAssigned(assigned) {
-  if (!Array.isArray(assigned) || !assigned.length) return "-";
-  return assigned
-    .map(id => `<div class="assigned-id">${id}</div>`)
-    .join("");
-}
-
+const formatDate = d => d ? new Date(d).toLocaleDateString() : "-";
 const formatStatus = s => s?.id ?? "-";
 const formatCategory = c => c?.id ?? "-";
 const formatUser = u => u?.id ?? "-";
 
-/* ================= JSON SYNTAX HIGHLIGHT ================= */
+function formatAssigned(a) {
+  if (!Array.isArray(a) || !a.length) return "-";
+  return a.map(id => `<div class="assigned-id">${id}</div>`).join("");
+}
+
+/* ================= JSON OUTPUT ================= */
 
 function setOutput(data) {
   const json = JSON.stringify(data, null, 2)
@@ -95,85 +60,71 @@ function setOutput(data) {
 /* ================= PROJECTS ================= */
 
 async function fetchProjects() {
-  try {
-    const json = await apiGet("projects");
-    const projects = normalizeProjects(json);
+  const json = await apiGet("projects");
+  const projects = normalizeProjects(json);
 
-    const table = document.getElementById("projectsTable");
-    table.innerHTML = "";
+  const table = document.getElementById("projectsTable");
+  table.innerHTML = "";
 
-    if (!projects.length) {
-      table.innerHTML =
-        `<tr><td colspan="13" class="text-center text-muted">
-          No projects found
-        </td></tr>`;
-      setOutput(json);
-      return;
-    }
-
-    projects.forEach(p => {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${p.id}</td>
-        <td>${p.title}</td>
-        <td>${p.description || "-"}</td>
-        <td>${formatDate(p.start_date)}</td>
-        <td>${formatDate(p.end_date)}</td>
-        <td>${formatStatus(p.status)}</td>
-        <td>${formatAssigned(p.assigned)}</td>
-        <td>${formatCategory(p.category)}</td>
-        <td>${formatUser(p.creator)}</td>
-        <td>${formatUser(p.manager)}</td>
-        <td>${p.category_name || "-"}</td>
-        <td>${formatDate(p.created_at)}</td>
-        <td>${formatDate(p.updated_at)}</td>
-      `;
-      row.onclick = () => setOutput(p);
-      table.appendChild(row);
-    });
-
-    setOutput(json);
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
+  if (!projects.length) {
+    table.innerHTML =
+      `<tr><td colspan="13" class="text-center text-muted">No projects found</td></tr>`;
   }
+
+  projects.forEach(p => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${p.id}</td>
+      <td>${p.title}</td>
+      <td>${p.description || "-"}</td>
+      <td>${formatDate(p.start_date)}</td>
+      <td>${formatDate(p.end_date)}</td>
+      <td>${formatStatus(p.status)}</td>
+      <td>${formatAssigned(p.assigned)}</td>
+      <td>${formatCategory(p.category)}</td>
+      <td>${formatUser(p.creator)}</td>
+      <td>${formatUser(p.manager)}</td>
+      <td>${p.category_name || "-"}</td>
+      <td>${formatDate(p.created_at)}</td>
+      <td>${formatDate(p.updated_at)}</td>
+    `;
+    row.onclick = () => setOutput(p);
+    table.appendChild(row);
+  });
+
+  setOutput(json);
 }
 
 async function fetchProjectById() {
-  try {
-    const id = document.getElementById("projectIdInput").value.trim();
-    if (!id) return alert("Enter Project ID");
+  const id = document.getElementById("projectIdInput").value.trim();
+  if (!id) return alert("Enter Project ID");
 
-    const json = await apiGet(`projects/${id}`);
-    const projects = normalizeProjects(json);
+  const json = await apiGet(`projects/${id}`);
+  const projects = normalizeProjects(json);
 
-    const table = document.getElementById("projectsTable");
-    table.innerHTML = "";
+  const table = document.getElementById("projectsTable");
+  table.innerHTML = "";
 
-    projects.forEach(p => {
-      const row = document.createElement("tr");
-      row.innerHTML = `
-        <td>${p.id}</td>
-        <td>${p.title}</td>
-        <td>${p.description || "-"}</td>
-        <td>${formatDate(p.start_date)}</td>
-        <td>${formatDate(p.end_date)}</td>
-        <td>${formatStatus(p.status)}</td>
-        <td>${formatAssigned(p.assigned)}</td>
-        <td>${formatCategory(p.category)}</td>
-        <td>${formatUser(p.creator)}</td>
-        <td>${formatUser(p.manager)}</td>
-        <td>${p.category_name || "-"}</td>
-        <td>${formatDate(p.created_at)}</td>
-        <td>${formatDate(p.updated_at)}</td>
-      `;
-      row.onclick = () => setOutput(p);
-      table.appendChild(row);
-    });
+  projects.forEach(p => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${p.id}</td>
+      <td>${p.title}</td>
+      <td>${p.description || "-"}</td>
+      <td>${formatDate(p.start_date)}</td>
+      <td>${formatDate(p.end_date)}</td>
+      <td>${formatStatus(p.status)}</td>
+      <td>${formatAssigned(p.assigned)}</td>
+      <td>${formatCategory(p.category)}</td>
+      <td>${formatUser(p.creator)}</td>
+      <td>${formatUser(p.manager)}</td>
+      <td>${p.category_name || "-"}</td>
+      <td>${formatDate(p.created_at)}</td>
+      <td>${formatDate(p.updated_at)}</td>
+    `;
+    row.onclick = () => setOutput(p);
+    table.appendChild(row);
+  });
 
-    setOutput(json);
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
-  }
+  setOutput(json);
 }
