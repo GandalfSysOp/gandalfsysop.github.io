@@ -32,8 +32,7 @@ function copyOutput() {
 =========================== */
 
 async function apiGet(path) {
-  const url = `/.netlify/functions/proofhub/${path}`;
-  const res = await fetch(url);
+  const res = await fetch(`/.netlify/functions/proofhub/${path}`);
 
   if (!res.ok) {
     const text = await res.text();
@@ -44,7 +43,7 @@ async function apiGet(path) {
 }
 
 /* ===========================
-   DATA NORMALIZER
+   DATA NORMALIZERS
 =========================== */
 
 function extractArray(json, keys = []) {
@@ -57,6 +56,26 @@ function extractArray(json, keys = []) {
     }
   }
   return [];
+}
+
+function formatDate(date) {
+  if (!date) return "-";
+  return new Date(date).toLocaleDateString();
+}
+
+function formatUser(user) {
+  if (!user) return "-";
+  return user.name || user.email || "-";
+}
+
+function formatAssigned(assigned) {
+  if (!Array.isArray(assigned) || !assigned.length) return "-";
+  return assigned.map(u => u.name).join(", ");
+}
+
+function formatCategory(category) {
+  if (!category) return "-";
+  return category.title || category.name || "-";
 }
 
 /* ===========================
@@ -73,7 +92,7 @@ async function fetchProjects() {
 
     if (!projects.length) {
       table.innerHTML =
-        `<tr><td colspan="4">No projects found</td></tr>`;
+        `<tr><td colspan="13">No projects found</td></tr>`;
     }
 
     projects.forEach(p => {
@@ -82,13 +101,22 @@ async function fetchProjects() {
       row.innerHTML = `
         <td>${p.id}</td>
         <td>${p.title || "-"}</td>
+        <td>${p.description || "-"}</td>
+        <td>${formatDate(p.start_date)}</td>
+        <td>${formatDate(p.end_date)}</td>
         <td>${p.status?.title || "-"}</td>
-        <td>${p.manager?.name || "-"}</td>
+        <td>${formatAssigned(p.assigned)}</td>
+        <td>${formatCategory(p.category)}</td>
+        <td>${formatUser(p.creator)}</td>
+        <td>${formatUser(p.manager)}</td>
+        <td>${p.category_name || "-"}</td>
+        <td>${formatDate(p.created_at)}</td>
+        <td>${formatDate(p.updated_at)}</td>
       `;
 
       row.onclick = () => {
         document.getElementById("projectIdInput").value = p.id;
-        setOutput(p);
+        setOutput(p); // full Postman object
       };
 
       table.appendChild(row);
@@ -117,7 +145,7 @@ async function fetchProjectById() {
 }
 
 /* ===========================
-   TASKS
+   TASKS (RAW FOR NOW)
 =========================== */
 
 async function fetchTasklists() {
@@ -163,7 +191,7 @@ async function fetchTasks() {
 }
 
 /* ===========================
-   PEOPLE
+   PEOPLE (RAW)
 =========================== */
 
 async function fetchPeople() {
