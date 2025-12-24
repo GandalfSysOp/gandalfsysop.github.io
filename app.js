@@ -1,28 +1,24 @@
 const BASE_URL =
   "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
-/* ================= API ================= */
-
+/* API */
 async function apiGet(path) {
   const res = await fetch(`${BASE_URL}?path=${encodeURIComponent(path)}`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-/* ================= PROJECT FINDER ================= */
-
+/* Project finder */
 function findProjectsDeep(data) {
   const results = [];
   const seen = new Set();
 
   function walk(node) {
     if (!node || typeof node !== "object") return;
-
     if (node.id && node.title && !seen.has(node.id)) {
       seen.add(node.id);
       results.push(node);
     }
-
     Object.values(node).forEach(walk);
   }
 
@@ -30,21 +26,15 @@ function findProjectsDeep(data) {
   return results;
 }
 
-/* ================= HELPERS ================= */
-
+/* Helpers */
 const formatDate = d => (d ? new Date(d).toLocaleDateString() : "-");
 
 function formatAssigned(a) {
   if (!Array.isArray(a) || !a.length) return "-";
-  return `
-    <div class="assigned-grid">
-      ${a.map(id => `<div class="assigned-id">${id}</div>`).join("")}
-    </div>
-  `;
+  return `<div class="assigned-text">${a.join("<br>")}</div>`;
 }
 
-/* ================= JSON ================= */
-
+/* JSON Beautifier */
 function syntaxHighlight(json) {
   return json.replace(
     /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
@@ -65,8 +55,7 @@ function setOutput(data) {
   el.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
 }
 
-/* ================= RENDER ================= */
-
+/* Render */
 function renderTable(projects) {
   document.getElementById("totalProjects").textContent = projects.length;
 
@@ -94,20 +83,9 @@ function renderTable(projects) {
   });
 }
 
-/* ================= ACTIONS ================= */
-
+/* Actions */
 async function fetchProjects() {
   const json = await apiGet("projects");
-  const projects = findProjectsDeep(json);
-  renderTable(projects);
-  setOutput(json);
-}
-
-async function fetchProjectById() {
-  const id = document.getElementById("projectIdInput").value.trim();
-  if (!id) return alert("Enter Project ID");
-
-  const json = await apiGet(`projects/${id}`);
   const projects = findProjectsDeep(json);
   renderTable(projects);
   setOutput(json);
