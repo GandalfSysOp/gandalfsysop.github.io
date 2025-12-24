@@ -1,13 +1,5 @@
 export async function handler(event) {
   try {
-    // Allow only GET for now
-    if (event.httpMethod !== "GET") {
-      return {
-        statusCode: 405,
-        body: "Method Not Allowed"
-      };
-    }
-
     const path = event.queryStringParameters?.path;
 
     if (!path) {
@@ -17,6 +9,7 @@ export async function handler(event) {
       };
     }
 
+    // FINAL ProofHub URL
     const url = `https://projects.proofhub.com/api/v3/${path}`;
 
     const response = await fetch(url, {
@@ -29,7 +22,7 @@ export async function handler(event) {
       }
     });
 
-    const text = await response.text();
+    const body = await response.text();
 
     return {
       statusCode: response.status,
@@ -37,7 +30,7 @@ export async function handler(event) {
         "Content-Type": "application/json",
         "Access-Control-Allow-Origin": "*"
       },
-      body: text
+      body
     };
 
   } catch (err) {
