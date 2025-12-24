@@ -9,8 +9,7 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ================= ULTIMATE NORMALIZER ================= */
-/* Finds project-like objects ANYWHERE in the response */
+/* ================= PROJECT DETECTOR ================= */
 
 function findProjectsDeep(data) {
   const results = [];
@@ -19,19 +18,11 @@ function findProjectsDeep(data) {
   function walk(node) {
     if (!node || typeof node !== "object") return;
 
-    // If it looks like a project, capture it
-    if (
-      node.id &&
-      typeof node.id === "number" &&
-      typeof node.title === "string"
-    ) {
-      if (!seen.has(node.id)) {
-        seen.add(node.id);
-        results.push(node);
-      }
+    if (node.id && node.title && !seen.has(node.id)) {
+      seen.add(node.id);
+      results.push(node);
     }
 
-    // Walk children
     if (Array.isArray(node)) {
       node.forEach(walk);
     } else {
@@ -50,9 +41,19 @@ const formatStatus = s => s?.id ?? "-";
 const formatCategory = c => c?.id ?? "-";
 const formatUser = u => u?.id ?? "-";
 
+function formatCategoryName(p) {
+  return p.category_name && p.category_name.trim()
+    ? p.category_name
+    : "—";
+}
+
 function formatAssigned(a) {
   if (!Array.isArray(a) || !a.length) return "-";
-  return a.map(id => `<div class="assigned-id">${id}</div>`).join("");
+  return `
+    <div class="assigned-container">
+      ${a.map(id => `<div class="assigned-id">${id}</div>`).join("")}
+    </div>
+  `;
 }
 
 /* ================= JSON OUTPUT ================= */
@@ -72,24 +73,10 @@ function setOutput(data) {
 
 async function fetchProjects() {
   const json = await apiGet("projects");
-
-  console.log("RAW RESPONSE:", json);
-
   const projects = findProjectsDeep(json);
-
-  console.log("FOUND PROJECTS:", projects);
 
   const table = document.getElementById("projectsTable");
   table.innerHTML = "";
-
-  if (!projects.length) {
-    table.innerHTML =
-      `<tr><td colspan="13" class="text-center text-danger">
-        Projects not detected in response
-      </td></tr>`;
-    setOutput(json);
-    return;
-  }
 
   projects.forEach(p => {
     const row = document.createElement("tr");
@@ -104,7 +91,7 @@ async function fetchProjects() {
       <td>${formatCategory(p.category)}</td>
       <td>${formatUser(p.creator)}</td>
       <td>${formatUser(p.manager)}</td>
-      <td>${p.category_name || "-"}</td>
+      <td>${formatCategoryName(p)}</td>
       <td>${formatDate(p.created_at)}</td>
       <td>${formatDate(p.updated_at)}</td>
     `;
@@ -138,7 +125,7 @@ async function fetchProjectById() {
       <td>${formatCategory(p.category)}</td>
       <td>${formatUser(p.creator)}</td>
       <td>${formatUser(p.manager)}</td>
-      <td>${p.category_name || "-"}</td>
+      <td>${formatCategoryName(p)}</td>
       <td>${formatDate(p.created_at)}</td>
       <td>${formatDate(p.updated_at)}</td>
     `;
