@@ -9,7 +9,7 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ================= PROJECT FINDER (STABLE) ================= */
+/* ================= PROJECT FINDER ================= */
 
 function findProjectsDeep(data) {
   const results = [];
@@ -42,61 +42,77 @@ function findProjectsDeep(data) {
 
 const formatDate = d => (d ? new Date(d).toLocaleDateString() : "-");
 
-function formatAssigned(a) {
-  if (!Array.isArray(a) || !a.length) return "-";
-  return `
-    <div class="assigned-grid">
-      ${a.map(id => `<div class="assigned-id">${id}</div>`).join("")}
-    </div>
-  `;
-}
-
-/* 🔑 FIXED CATEGORY NAME (robust fallback) */
 function formatCategoryName(p) {
   if (p.category_name && p.category_name.trim()) return p.category_name;
-  if (p.category?.name) return p.category.name;
   if (p.category?.id) return `Category ID: ${p.category.id}`;
   return "-";
 }
 
-/* ================= JSON OUTPUT ================= */
+/* ================= RENDER ================= */
 
-function setOutput(data) {
-  const json = JSON.stringify(data, null, 2)
-    .replace(/"(.*?)":/g, '<span class="json-key">"$1"</span>:')
-    .replace(/: "(.*?)"/g, ': <span class="json-string">"$1"</span>')
-    .replace(/: (\d+)/g, ': <span class="json-number">$1</span>')
-    .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
-    .replace(/: null/g, ': <span class="json-null">null</span>');
-
-  document.getElementById("output").innerHTML = json;
-}
-
-/* ================= RENDER TABLE ================= */
-
-function renderTable(projects) {
-  const table = document.getElementById("projectsTable");
-  table.innerHTML = "";
+function renderProjects(projects) {
+  const container = document.getElementById("projectsContainer");
+  container.innerHTML = "";
 
   projects.forEach(p => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${p.id}</td>
-      <td>${p.title}</td>
-      <td>${p.description || "-"}</td>
-      <td>${formatDate(p.start_date)}</td>
-      <td>${formatDate(p.end_date)}</td>
-      <td>${p.status?.id ?? "-"}</td>
-      <td>${formatAssigned(p.assigned)}</td>
-      <td>${p.category?.id ?? "-"}</td>
-      <td>${p.creator?.id ?? "-"}</td>
-      <td>${p.manager?.id ?? "-"}</td>
-      <td>${formatCategoryName(p)}</td>
-      <td>${formatDate(p.created_at)}</td>
-      <td>${formatDate(p.updated_at)}</td>
+    const card = document.createElement("div");
+    card.className = "project-card";
+
+    card.innerHTML = `
+      <div class="project-title">${p.title}</div>
+      <div class="project-id">ID: ${p.id}</div>
+
+      <div class="section">
+        <div class="label">Description</div>
+        <div class="value">${p.description || "-"}</div>
+      </div>
+
+      <div class="section grid-2">
+        <div>
+          <div class="label">Start Date</div>
+          <div class="value">${formatDate(p.start_date)}</div>
+        </div>
+        <div>
+          <div class="label">End Date</div>
+          <div class="value">${formatDate(p.end_date)}</div>
+        </div>
+        <div>
+          <div class="label">Status</div>
+          <div class="value">${p.status?.id ?? "-"}</div>
+        </div>
+        <div>
+          <div class="label">Category</div>
+          <div class="value">${formatCategoryName(p)}</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="label">Assigned</div>
+        <div class="assigned-grid">
+          ${(p.assigned || []).length
+            ? p.assigned.map(id => `<div class="assigned-id">${id}</div>`).join("")
+            : "-"}
+        </div>
+      </div>
+
+      <div class="section grid-2">
+        <div>
+          <div class="label">Creator</div>
+          <div class="value">${p.creator?.id ?? "-"}</div>
+        </div>
+        <div>
+          <div class="label">Manager</div>
+          <div class="value">${p.manager?.id ?? "-"}</div>
+        </div>
+      </div>
+
+      <button class="btn btn-link mt-2" onclick='toggleJson(this)'>
+        View Raw JSON
+      </button>
+      <pre style="display:none">${JSON.stringify(p, null, 2)}</pre>
     `;
-    row.onclick = () => setOutput(p);
-    table.appendChild(row);
+
+    container.appendChild(card);
   });
 }
 
@@ -105,8 +121,7 @@ function renderTable(projects) {
 async function fetchProjects() {
   const json = await apiGet("projects");
   const projects = findProjectsDeep(json);
-  renderTable(projects);
-  setOutput(json);
+  renderProjects(projects);
 }
 
 async function fetchProjectById() {
@@ -115,6 +130,12 @@ async function fetchProjectById() {
 
   const json = await apiGet(`projects/${id}`);
   const projects = findProjectsDeep(json);
-  renderTable(projects);
-  setOutput(json);
+  renderProjects(projects);
+}
+
+/* ================= UI HELPERS ================= */
+
+function toggleJson(btn) {
+  const pre = btn.nextElementSibling;
+  pre.style.display = pre.style.display === "none" ? "block" : "none";
 }
