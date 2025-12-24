@@ -28,7 +28,8 @@ function copyOutput() {
 }
 
 /* ===========================
-   API HELPER (DIRECT NETLIFY FUNCTION)
+   API HELPER
+   (DIRECT NETLIFY FUNCTION)
 =========================== */
 
 async function apiGet(path) {
@@ -63,19 +64,24 @@ function formatDate(date) {
   return new Date(date).toLocaleDateString();
 }
 
-function formatUser(user) {
-  if (!user) return "-";
-  return user.name || user.email || "-";
+function formatStatus(status) {
+  if (!status || !status.id) return "-";
+  return status.id;
 }
 
 function formatAssigned(assigned) {
   if (!Array.isArray(assigned) || !assigned.length) return "-";
-  return assigned.map(u => u.name).join(", ");
+  return assigned.join(", ");
 }
 
 function formatCategory(category) {
-  if (!category) return "-";
-  return category.title || category.name || "-";
+  if (!category || !category.id) return "-";
+  return category.id;
+}
+
+function formatUserId(user) {
+  if (!user || !user.id) return "-";
+  return user.id;
 }
 
 /* ===========================
@@ -93,6 +99,7 @@ async function fetchProjects() {
     if (!projects.length) {
       table.innerHTML =
         `<tr><td colspan="13">No projects found</td></tr>`;
+      return;
     }
 
     projects.forEach(p => {
@@ -104,11 +111,11 @@ async function fetchProjects() {
         <td>${p.description || "-"}</td>
         <td>${formatDate(p.start_date)}</td>
         <td>${formatDate(p.end_date)}</td>
-        <td>${p.status?.title || "-"}</td>
+        <td>${formatStatus(p.status)}</td>
         <td>${formatAssigned(p.assigned)}</td>
         <td>${formatCategory(p.category)}</td>
-        <td>${formatUser(p.creator)}</td>
-        <td>${formatUser(p.manager)}</td>
+        <td>${formatUserId(p.creator)}</td>
+        <td>${formatUserId(p.manager)}</td>
         <td>${p.category_name || "-"}</td>
         <td>${formatDate(p.created_at)}</td>
         <td>${formatDate(p.updated_at)}</td>
@@ -116,7 +123,7 @@ async function fetchProjects() {
 
       row.onclick = () => {
         document.getElementById("projectIdInput").value = p.id;
-        setOutput(p); // full Postman object
+        setOutput(p); // full object, exactly like Postman
       };
 
       table.appendChild(row);
@@ -145,7 +152,7 @@ async function fetchProjectById() {
 }
 
 /* ===========================
-   TASKS (RAW FOR NOW)
+   TASKS (RAW OUTPUT FOR NOW)
 =========================== */
 
 async function fetchTasklists() {
