@@ -2,203 +2,139 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>ProofHub API Dashboard</title>
+  <title>ProofHub Dashboard</title>
 
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"/>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet"/>
 
   <style>
     body {
       background: #f4f6fb;
       font-size: 13px;
+      margin: 0;
     }
 
-    /* ===== SIDEBAR ===== */
-    .sidebar {
-      width: 280px;
-      min-height: 100vh;
-      background: linear-gradient(180deg, #0f172a, #020617);
+    .layout {
+      display: grid;
+      grid-template-columns: 340px 1fr;
+      height: 100vh;
+    }
+
+    /* LEFT LIST */
+    .list-panel {
+      background: #0f172a;
       color: #e5e7eb;
-      padding: 20px;
+      padding: 16px;
+      overflow-y: auto;
     }
 
-    .sidebar h4 {
-      font-weight: 600;
-      margin-bottom: 24px;
+    .list-panel h5 {
+      margin-bottom: 12px;
     }
 
-    .sidebar-section-title {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: .08em;
-      color: #94a3b8;
-      margin-bottom: 8px;
-    }
-
-    .nav-btn {
-      width: 100%;
-      background: none;
-      border: none;
-      color: #cbd5e1;
-      padding: 10px 12px;
-      text-align: left;
+    .project-item {
+      background: #020617;
       border-radius: 8px;
-      margin-bottom: 4px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .nav-btn:hover,
-    .nav-btn.active {
-      background: #1e293b;
-      color: #fff;
-    }
-
-    /* ===== MAIN ===== */
-    .content {
-      padding: 28px;
-    }
-
-    .card {
-      border-radius: 14px;
-      border: none;
-      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
-    }
-
-    /* ===== TABLE (modern, borderless) ===== */
-    .table-wrapper {
-      overflow-x: auto;
-    }
-
-    table {
-      white-space: nowrap;
-      border-collapse: separate;
-      border-spacing: 0 10px; /* row separation */
-    }
-
-    thead th {
-      font-size: 11px;
-      text-transform: uppercase;
-      color: #64748b;
-      background: transparent;
-      border: none;
-      padding-bottom: 8px;
-    }
-
-    tbody tr {
-      background: #ffffff;
-      border-radius: 10px;
-      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    tbody tr:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
+      padding: 10px;
+      margin-bottom: 8px;
       cursor: pointer;
     }
 
-    tbody td {
-      border: none;
-      padding: 10px 12px;
-      vertical-align: top;
+    .project-item:hover {
+      background: #1e293b;
     }
 
-    /* Assigned IDs – vertical guaranteed */
-    .assigned-container {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    .project-title {
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .project-id {
+      font-size: 11px;
+      color: #94a3b8;
+    }
+
+    /* RIGHT DETAIL */
+    .detail-panel {
+      padding: 24px;
+      overflow-y: auto;
+    }
+
+    .detail-card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 8px 18px rgba(15,23,42,0.08);
+      margin-bottom: 16px;
+    }
+
+    .field {
+      margin-bottom: 10px;
+    }
+
+    .label {
+      font-size: 11px;
+      text-transform: uppercase;
+      color: #64748b;
+    }
+
+    .value {
+      font-weight: 500;
     }
 
     .assigned-id {
       background: #eef2ff;
       color: #3730a3;
-      padding: 2px 6px;
+      padding: 3px 8px;
       border-radius: 6px;
       font-size: 11px;
-      width: fit-content;
+      margin-right: 6px;
+      margin-bottom: 6px;
+      display: inline-block;
     }
 
-    /* ===== JSON ===== */
-    .json-output {
+    pre {
       background: #020617;
       color: #e5e7eb;
-      padding: 16px;
-      border-radius: 10px;
+      padding: 12px;
+      border-radius: 8px;
       font-size: 12px;
-      line-height: 1.6;
-      max-height: 360px;
+      max-height: 300px;
       overflow: auto;
     }
-
-    .json-key { color: #38bdf8; }
-    .json-string { color: #4ade80; }
-    .json-number { color: #facc15; }
-    .json-boolean { color: #fb7185; }
-    .json-null { color: #94a3b8; }
   </style>
 </head>
 
 <body>
-<div class="d-flex">
 
-  <aside class="sidebar">
-    <h4><i class="bi bi-box-seam"></i> ProofHub</h4>
+<div class="layout">
 
-    <div class="mb-4">
-      <div class="sidebar-section-title">Project Controls</div>
-      <input id="projectIdInput" class="form-control form-control-sm mb-2" placeholder="Project ID">
-      <button class="btn btn-primary btn-sm w-100" onclick="fetchProjectById()">Fetch Project</button>
+  <!-- LEFT: PROJECT LIST -->
+  <div class="list-panel">
+    <h5>Projects</h5>
+
+    <input id="projectIdInput" class="form-control form-control-sm mb-2" placeholder="Project ID">
+    <button class="btn btn-primary btn-sm w-100 mb-3" onclick="fetchProjectById()">Fetch Project</button>
+
+    <button class="btn btn-outline-light btn-sm w-100 mb-3" onclick="fetchProjects()">Fetch All</button>
+
+    <div id="projectList"></div>
+  </div>
+
+  <!-- RIGHT: DETAILS -->
+  <div class="detail-panel">
+
+    <div class="detail-card">
+      <h5>Project Details</h5>
+      <div id="details"></div>
     </div>
 
-    <div>
-      <div class="sidebar-section-title">Navigation</div>
-      <button class="nav-btn active"><i class="bi bi-kanban"></i> Projects</button>
-    </div>
-  </aside>
-
-  <main class="flex-grow-1 content">
-
-    <div class="d-flex justify-content-between mb-3">
-      <h3>Projects</h3>
-      <button class="btn btn-outline-primary btn-sm" onclick="fetchProjects()">Fetch All Projects</button>
+    <div class="detail-card">
+      <h6>Raw JSON</h6>
+      <pre id="output"></pre>
     </div>
 
-    <div class="card mb-4">
-      <div class="card-body table-wrapper">
-        <table class="table align-middle">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Title</th>
-              <th>Description</th>
-              <th>Start</th>
-              <th>End</th>
-              <th>Status ID</th>
-              <th>Assigned IDs</th>
-              <th>Category ID</th>
-              <th>Creator ID</th>
-              <th>Manager ID</th>
-              <th>Category Name</th>
-              <th>Created</th>
-              <th>Updated</th>
-            </tr>
-          </thead>
-          <tbody id="projectsTable"></tbody>
-        </table>
-      </div>
-    </div>
+  </div>
 
-    <div class="card">
-      <div class="card-body">
-        <strong>Raw JSON</strong>
-        <pre id="output" class="json-output"></pre>
-      </div>
-    </div>
-
-  </main>
 </div>
 
 <script src="app.js"></script>
