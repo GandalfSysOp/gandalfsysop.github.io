@@ -13,6 +13,7 @@
       font-size: 13px;
     }
 
+    /* ===== SIDEBAR ===== */
     .sidebar {
       width: 280px;
       min-height: 100vh;
@@ -54,10 +55,18 @@
       color: #fff;
     }
 
+    /* ===== MAIN ===== */
     .content {
       padding: 28px;
     }
 
+    .card {
+      border-radius: 14px;
+      border: none;
+      box-shadow: 0 10px 20px rgba(15, 23, 42, 0.08);
+    }
+
+    /* ===== TABLE (modern, borderless) ===== */
     .table-wrapper {
       overflow-x: auto;
     }
@@ -65,29 +74,42 @@
     table {
       white-space: nowrap;
       border-collapse: separate;
-      border-spacing: 0;
-    }
-
-    thead th,
-    tbody td {
-      border-right: 1px solid #e5e7eb;
-      border-bottom: 1px solid #e5e7eb;
-    }
-
-    thead th:first-child,
-    tbody td:first-child {
-      border-left: 1px solid #e5e7eb;
+      border-spacing: 0 10px; /* row separation */
     }
 
     thead th {
-      background: #eef2ff;
       font-size: 11px;
       text-transform: uppercase;
+      color: #64748b;
+      background: transparent;
+      border: none;
+      padding-bottom: 8px;
     }
 
-    tbody tr:hover td {
-      background: #eef2ff;
+    tbody tr {
+      background: #ffffff;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.06);
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    tbody tr:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 18px rgba(15, 23, 42, 0.12);
       cursor: pointer;
+    }
+
+    tbody td {
+      border: none;
+      padding: 10px 12px;
+      vertical-align: top;
+    }
+
+    /* Assigned IDs – vertical guaranteed */
+    .assigned-container {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
     }
 
     .assigned-id {
@@ -95,11 +117,11 @@
       color: #3730a3;
       padding: 2px 6px;
       border-radius: 6px;
-      margin-bottom: 4px;
       font-size: 11px;
-      display: inline-block;
+      width: fit-content;
     }
 
+    /* ===== JSON ===== */
     .json-output {
       background: #020617;
       color: #e5e7eb;
@@ -141,14 +163,12 @@
 
     <div class="d-flex justify-content-between mb-3">
       <h3>Projects</h3>
-      <button class="btn btn-outline-primary btn-sm" onclick="fetchProjects()">
-        Fetch All Projects
-      </button>
+      <button class="btn btn-outline-primary btn-sm" onclick="fetchProjects()">Fetch All Projects</button>
     </div>
 
     <div class="card mb-4">
       <div class="card-body table-wrapper">
-        <table class="table table-sm table-hover align-middle">
+        <table class="table align-middle">
           <thead>
             <tr>
               <th>ID</th>
