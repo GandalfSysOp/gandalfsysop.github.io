@@ -1,9 +1,11 @@
 const BASE_URL =
   "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
-/* ================= PEOPLE CACHE ================= */
+/* ================= LOOKUP CACHES ================= */
 
 let PEOPLE_MAP = {};
+let CATEGORY_MAP = {};
+let STATUS_MAP = {};
 
 /* ================= API ================= */
 
@@ -13,31 +15,52 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ================= LOAD PEOPLE ================= */
+/* ================= LOADERS ================= */
 
 async function loadPeopleMap() {
   if (Object.keys(PEOPLE_MAP).length) return;
-
   const people = await apiGet("people");
   people.forEach(p => {
     PEOPLE_MAP[p.id] = `${p.first_name} ${p.last_name}`.trim();
   });
 }
 
-function personName(id) {
-  return PEOPLE_MAP[id]
-    ? `${PEOPLE_MAP[id]} (${id})`
-    : id;
+async function loadCategoryMap() {
+  if (Object.keys(CATEGORY_MAP).length) return;
+  const categories = await apiGet("categories");
+  categories.forEach(c => {
+    CATEGORY_MAP[c.id] = c.name;
+  });
 }
 
-/* ================= HELPERS ================= */
+async function loadStatusMap() {
+  if (Object.keys(STATUS_MAP).length) return;
+  const statuses = await apiGet("projectstatus");
+  statuses.forEach(s => {
+    STATUS_MAP[s.id] = s.title;
+  });
+}
+
+/* ================= FORMATTERS ================= */
+
+function personName(id) {
+  return PEOPLE_MAP[id] ? `${PEOPLE_MAP[id]} (${id})` : id;
+}
+
+function categoryName(id) {
+  return CATEGORY_MAP[id] || id || "-";
+}
+
+function statusName(id) {
+  return STATUS_MAP[id] || id || "-";
+}
 
 function chunkArray(arr, size) {
-  const chunks = [];
+  const out = [];
   for (let i = 0; i < arr.length; i += size) {
-    chunks.push(arr.slice(i, i + size));
+    out.push(arr.slice(i, i + size));
   }
-  return chunks;
+  return out;
 }
 
 function formatAssignedTable(ids) {
@@ -46,57 +69,42 @@ function formatAssignedTable(ids) {
   const rows = chunkArray(ids, 2);
 
   return `
-    <table style="
-      border-collapse: collapse;
-      width: 100%;
-      font-size: 12px;
-    ">
-      ${rows.map(row => `
+    <table style="border-collapse:collapse;width:100%;font-size:12px;">
+      ${rows.map(r => `
         <tr>
-          ${row.map(id => `
-            <td style="
-              border: 1px solid #e5e7eb;
-              padding: 6px;
-              vertical-align: top;
-            ">
+          ${r.map(id => `
+            <td style="border:1px solid #e5e7eb;padding:6px;">
               ${personName(id)}
             </td>
           `).join("")}
-          ${row.length === 1 ? `<td style="border:1px solid #e5e7eb;"></td>` : ""}
+          ${r.length === 1 ? `<td style="border:1px solid #e5e7eb;"></td>` : ""}
         </tr>
       `).join("")}
     </table>
   `;
 }
 
+/* ================= VALUE FORMAT ================= */
+
 function formatValue(key, value) {
   if (value === null || value === undefined) return "-";
 
-  // ✅ SPECIAL CASE: Assigned → table
-  if (key === "assigned") {
-    return formatAssignedTable(value);
+  if (key === "assigned") return formatAssignedTable(value);
+
+  if (key === "category") return categoryName(value?.id);
+
+  if (key === "status") return statusName(value?.id);
+
+  if (typeof value === "object" && value.id) {
+    return personName(value.id);
   }
 
-  // Arrays (tabs, projects, etc.)
-  if (Array.isArray(value)) {
-    return value.length ? value.join(", ") : "-";
-  }
-
-  // Objects (creator, manager, status, category)
-  if (typeof value === "object") {
-    if ("id" in value) {
-      return personName(value.id);
-    }
-
-    return Object.entries(value)
-      .map(([k, v]) => `${k}: ${formatValue(k, v)}`)
-      .join(", ");
-  }
+  if (Array.isArray(value)) return value.join(", ");
 
   return value.toString();
 }
 
-/* ================= JSON FORMAT ================= */
+/* ================= JSON ================= */
 
 function formatJsonPretty(obj) {
   const json = JSON.stringify(obj, null, 2);
@@ -134,7 +142,11 @@ async function getProject() {
   const id = document.getElementById("projectIdInput").value.trim();
   if (!id) return alert("Enter a Project ID");
 
-  await loadPeopleMap(); // load once, reused everywhere
+  await Promise.all([
+    loadPeopleMap(),
+    loadCategoryMap(),
+    loadStatusMap()
+  ]);
 
   const json = await apiGet(`projects/${id}`);
   renderProject(json);
