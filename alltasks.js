@@ -3,101 +3,81 @@ const BASE_URL =
 
 /* ================= STATE ================= */
 
-let PEOPLE_MAP = {};
-let PROJECT_MAP = {};
+let PEOPLE = {};
+let PROJECTS = {};
 let start = 0;
 let limit = 100;
-let totalCount = 0;
+let total = 0;
 
 /* ================= API ================= */
 
 async function apiGet(path, params = {}) {
-  const query = new URLSearchParams(params).toString();
-  const url = `${BASE_URL}?path=${encodeURIComponent(path + (query ? "?" + query : ""))}`;
+  const qs = new URLSearchParams(params).toString();
+  const url = `${BASE_URL}?path=${encodeURIComponent(path + (qs ? "?" + qs : ""))}`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-/* ================= LOAD LOOKUPS ================= */
+/* ================= LOAD DROPDOWNS ================= */
 
 async function loadPeople() {
   const people = await apiGet("people");
-  const select = document.getElementById("assignedFilter");
+  const sel = document.getElementById("assignedFilter");
 
   people.forEach(p => {
-    PEOPLE_MAP[p.id] = `${p.first_name} ${p.last_name}`.trim();
-    const opt = document.createElement("option");
-    opt.value = p.id;
-    opt.textContent = PEOPLE_MAP[p.id];
-    select.appendChild(opt);
+    PEOPLE[p.id] = `${p.first_name} ${p.last_name}`;
+    const o = document.createElement("option");
+    o.value = p.id;
+    o.textContent = PEOPLE[p.id];
+    sel.appendChild(o);
   });
 }
 
 async function loadProjects() {
-  const data = await apiGet("projects");
-  const projects = [];
+  const raw = await apiGet("projects");
+  const sel = document.getElementById("projectFilter");
 
   (function walk(obj) {
     if (!obj || typeof obj !== "object") return;
-    if (obj.id && obj.title) projects.push(obj);
+    if (obj.id && obj.title) {
+      PROJECTS[obj.id] = obj.title;
+      const o = document.createElement("option");
+      o.value = obj.id;
+      o.textContent = obj.title;
+      sel.appendChild(o);
+    }
     Object.values(obj).forEach(walk);
-  })(data);
-
-  const select = document.getElementById("projectFilter");
-
-  projects.forEach(p => {
-    PROJECT_MAP[p.id] = p.title;
-    const opt = document.createElement("option");
-    opt.value = p.id;
-    opt.textContent = p.title;
-    select.appendChild(opt);
-  });
+  })(raw);
 }
 
-/* ================= FORMATTERS ================= */
+/* ================= FORMAT ================= */
 
-const nameOf = id => PEOPLE_MAP[id] || id;
-
-function formatAssigned(arr) {
+function assignedNames(arr) {
   if (!Array.isArray(arr) || !arr.length) return "—";
-  return arr.map(nameOf).join(", ");
+  return arr.map(id => PEOPLE[id] || id).join(", ");
 }
 
 /* ================= FETCH TASKS ================= */
 
 async function fetchTasks() {
-  const assignedSelected = [...document.getElementById("assignedFilter").selectedOptions]
-    .map(o => o.value);
-
-  const projectSelected = [...document.getElementById("projectFilter").selectedOptions]
-    .map(o => o.value);
-
+  const assigned = [...document.getElementById("assignedFilter").selectedOptions].map(o => o.value);
+  const projects = [...document.getElementById("projectFilter").selectedOptions].map(o => o.value);
   const completed = document.getElementById("completedFilter").value;
   const includeSub = document.getElementById("subtaskFilter").value;
   limit = Number(document.getElementById("limitFilter").value);
 
-  const params = {
-    start,
-    limit,
-    include_unassigned: true,
-    include_subtasks: includeSub,
-    completed
-  };
+  const params = { start, limit };
 
-  // 🔑 IMPORTANT FIX
-  params.assigned = assignedSelected.length
-    ? assignedSelected.join(",")
-    : "all_assigned";
+  if (assigned.length) params.assigned = assigned.join(",");
+  if (projects.length) params.projects = projects.join(",");
+  if (completed !== "all") params.completed = completed;
+  if (includeSub === "false") params.include_subtasks = false;
 
-  if (projectSelected.length) {
-    params.projects = projectSelected.join(",");
-  }
+  const data = await apiGet("alltodo", params);
 
-  const json = await apiGet("alltodo", params);
-
-  totalCount = json.total_count || 0;
-  renderTasks(json.todos || []);
+  total = data.total_count || 0;
+  renderTasks(data.todos || []);
   renderPageInfo();
 }
 
@@ -111,10 +91,9 @@ function renderTasks(tasks) {
     tbody.innerHTML = `
       <tr>
         <td colspan="7" class="text-center text-muted">
-          No tasks found for selected filters
+          No tasks found
         </td>
-      </tr>
-    `;
+      </tr>`;
     return;
   }
 
@@ -124,7 +103,7 @@ function renderTasks(tasks) {
       <td>${t.ticket || "—"}</td>
       <td>${t.title}</td>
       <td>${t.project?.name || "—"}</td>
-      <td>${formatAssigned(t.assigned)}</td>
+      <td>${assignedNames(t.assigned)}</td>
       <td>${t.stage?.name || "—"}</td>
       <td>${t.completed ? "Yes" : "No"}</td>
       <td>${t.due_date || "—"}</td>
@@ -135,15 +114,15 @@ function renderTasks(tasks) {
 
 function renderPageInfo() {
   const from = start + 1;
-  const to = Math.min(start + limit, totalCount);
+  const to = Math.min(start + limit, total);
   document.getElementById("pageInfo").textContent =
-    `Showing ${from}–${to} of ${totalCount}`;
+    `Showing ${from}-${to} of ${total}`;
 }
 
 /* ================= PAGINATION ================= */
 
 function nextPage() {
-  if (start + limit < totalCount) {
+  if (start + limit < total) {
     start += limit;
     fetchTasks();
   }
