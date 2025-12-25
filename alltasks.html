@@ -36,11 +36,13 @@
 
     td {
       vertical-align: top;
-      white-space: normal;
     }
 
-    .filters label {
-      font-size: 11px;
+    .details-row {
+      background: #f9fafb;
+    }
+
+    .detail-label {
       font-weight: 600;
       color: #475569;
     }
@@ -60,29 +62,28 @@
   </div>
 
   <!-- FILTERS -->
-  <div class="card p-3 mb-3 filters">
+  <div class="card p-3 mb-3">
     <div class="row g-3">
       <div class="col-md-3">
-        <label>Project</label>
-        <select id="projectFilter" class="form-select form-select-sm" onchange="applyFilters()">
+        <label class="fw-semibold">Assigned</label>
+        <select id="assignedFilter" class="form-select form-select-sm">
           <option value="">All</option>
         </select>
       </div>
 
       <div class="col-md-3">
-        <label>Assigned</label>
-        <select id="assignedFilter" class="form-select form-select-sm" onchange="applyFilters()">
-          <option value="">All</option>
-        </select>
-      </div>
-
-      <div class="col-md-2">
-        <label>Status</label>
-        <select id="completedFilter" class="form-select form-select-sm" onchange="applyFilters()">
+        <label class="fw-semibold">Completed</label>
+        <select id="completedFilter" class="form-select form-select-sm">
           <option value="">All</option>
           <option value="true">Completed</option>
           <option value="false">Incomplete</option>
         </select>
+      </div>
+
+      <div class="col-md-2 d-flex align-items-end">
+        <button class="btn btn-secondary btn-sm" onclick="applyFilters()">
+          Apply Filters
+        </button>
       </div>
     </div>
   </div>
@@ -93,13 +94,14 @@
       <table class="table table-sm table-bordered">
         <thead>
           <tr>
+            <th></th>
             <th>Ticket</th>
             <th>Title</th>
             <th>Project</th>
             <th>Assigned</th>
             <th>Creator</th>
             <th>Status</th>
-            <th>Due Date</th>
+            <th>Due</th>
           </tr>
         </thead>
         <tbody id="tasksTable"></tbody>
