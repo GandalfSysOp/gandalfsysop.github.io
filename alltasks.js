@@ -1,15 +1,20 @@
 const BASE_URL =
   "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
+/* ================= STATE ================= */
+
 let PEOPLE = {};
 let PROJECTS = {};
 let CURRENT_TASKS = [];
+
+/* ================= API ================= */
 
 async function apiGet(path, params = {}) {
   const qs = new URLSearchParams(params).toString();
   const url = `${BASE_URL}?path=${encodeURIComponent(
     path + (qs ? "?" + qs : "")
   )}`;
+
   const res = await fetch(url);
   return res.json();
 }
@@ -20,6 +25,8 @@ function normalizeAllTodoResponse(res) {
   if (res.data?.todos) return res.data;
   return { todos: [] };
 }
+
+/* ================= LOAD LOOKUPS ================= */
 
 async function loadPeople() {
   const res = await apiGet("people");
@@ -52,6 +59,8 @@ async function loadProjects() {
   })(res.data || res);
 }
 
+/* ================= FETCH ================= */
+
 async function fetchTasks() {
   let start = Number(document.getElementById("startInput").value || 0);
   let limit = Number(document.getElementById("limitInput").value || 100);
@@ -66,7 +75,11 @@ async function fetchTasks() {
   const completed = document.getElementById("completedFilter").value;
   const subtasks = document.getElementById("subtaskFilter").value;
 
-  const params = { start, limit };
+  const params = {
+    start,
+    limit,
+    completed // ALWAYS send: all | true | false
+  };
 
   if (assigned === "all_assigned") {
     params.assigned = "all_assigned";
@@ -78,19 +91,11 @@ async function fetchTasks() {
     params.projects = project;
   }
 
-  // ✅ CORRECT completed logic
-  if (completed === "true") {
-    params.completed = true;
-  } else if (completed === "false") {
-    params.completed = false;
-  }
-  // if empty → do NOT send completed (All)
-
   if (subtasks === "false") {
     params.include_subtasks = false;
   }
 
-  console.log("FINAL REQUEST PARAMS →", params);
+  console.log("REQUEST PARAMS →", params);
 
   const res = await apiGet("alltodo", params);
   const { todos } = normalizeAllTodoResponse(res);
@@ -98,6 +103,8 @@ async function fetchTasks() {
   CURRENT_TASKS = todos;
   renderTasks();
 }
+
+/* ================= RENDER ================= */
 
 function renderTasks() {
   const tbody = document.getElementById("tasksTable");
@@ -121,7 +128,9 @@ function renderTasks() {
 
     tbody.innerHTML += `
       <tr>
-        <td><button class="btn btn-link btn-sm" onclick="toggleDetails(${i})">+</button></td>
+        <td>
+          <button class="btn btn-link btn-sm" onclick="toggleDetails(${i})">+</button>
+        </td>
         <td>${t.ticket}</td>
         <td>${t.title}</td>
         <td>${t.project?.name || "—"}</td>
@@ -132,15 +141,83 @@ function renderTasks() {
         <td>${t.completed ? "Completed" : "Open"}</td>
         <td>${t.by_me ? "Yes" : "No"}</td>
       </tr>
+
+      <tr id="details-${i}" class="details-row" style="display:none">
+        <td colspan="10">
+          ${renderDetails(t)}
+        </td>
+      </tr>
     `;
   });
 }
 
+function renderDetails(t) {
+  const custom =
+    t.custom_fields?.map(f => `${f.title}: ${f.value || "—"}`).join("<br>") || "—";
+
+  return `
+    <div class="row g-3">
+      <div class="col-md-6">
+        <span class="detail-label">Description:</span>
+        ${t.description || "—"}
+      </div>
+
+      <div class="col-md-3">
+        <span class="detail-label">Estimated:</span>
+        ${t.estimated_hours || 0}h ${t.estimated_mins || 0}m
+      </div>
+
+      <div class="col-md-3">
+        <span class="detail-label">Logged:</span>
+        ${t.logged_hours || 0}h ${t.logged_mins || 0}m
+      </div>
+
+      <div class="col-md-3">
+        <span class="detail-label">Progress:</span>
+        ${t.percent_progress || 0}%
+      </div>
+
+      <div class="col-md-3">
+        <span class="detail-label">Labels:</span>
+        ${t.labels?.join(", ") || "—"}
+      </div>
+
+      <div class="col-md-3">
+        <span class="detail-label">Attachments:</span>
+        ${t.attachments?.length || 0}
+      </div>
+
+      <div class="col-md-3">
+        <span class="detail-label">Parent ID:</span>
+        ${t.parent_id || "—"}
+      </div>
+
+      <div class="col-md-6">
+        <span class="detail-label">Created:</span>
+        ${t.created_at}
+      </div>
+
+      <div class="col-md-6">
+        <span class="detail-label">Updated:</span>
+        ${t.updated_at}
+      </div>
+
+      <div class="col-md-12">
+        <span class="detail-label">Custom Fields:</span><br>
+        ${custom}
+      </div>
+    </div>
+  `;
+}
+
 function toggleDetails(i) {
   const row = document.getElementById(`details-${i}`);
-  if (row) row.style.display =
+  if (!row) return;
+  row.style.display =
     row.style.display === "none" ? "table-row" : "none";
 }
+
+/* ================= INIT ================= */
 
 (async function init() {
   await loadPeople();
