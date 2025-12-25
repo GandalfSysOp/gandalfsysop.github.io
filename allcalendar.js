@@ -26,6 +26,7 @@ async function loadPeople() {
 
   data.forEach(p => {
     PEOPLE[p.id] = `${p.first_name} ${p.last_name}`.trim();
+
     const opt = document.createElement("option");
     opt.value = p.id;
     opt.textContent = PEOPLE[p.id];
@@ -40,6 +41,8 @@ async function fetchCalendar() {
   const endDate = document.getElementById("endDate").value;
   const view = document.getElementById("viewFilter").value;
   const assigned = document.getElementById("assignedFilter").value;
+  const start = Number(document.getElementById("startInput").value || 0);
+  const limit = Number(document.getElementById("limitInput").value || 25);
 
   if (!startDate || !endDate) {
     alert("Please select start and end dates");
@@ -50,16 +53,23 @@ async function fetchCalendar() {
     startDate,
     endDate,
     singleEvents: true,
-    view,
-    assigned
+    view,        // events,milestones,tasks
+    assigned,    // all | none | user_id
+    start,
+    limit
   };
 
   console.log("CALENDAR PARAMS →", params);
 
   const res = await apiGet("allcalendars", params);
-  const items = res.data || [];
 
-  renderCalendar(items);
+  if (!res || !res.data) {
+    console.error("Invalid calendar response", res);
+    alert("Invalid calendar request");
+    return;
+  }
+
+  renderCalendar(res.data);
 }
 
 /* ================= RENDER ================= */
@@ -71,7 +81,7 @@ function renderCalendar(items) {
   if (!items.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="9" class="text-center text-muted">
+        <td colspan="10" class="text-center text-muted">
           No calendar items found
         </td>
       </tr>`;
@@ -93,6 +103,7 @@ function renderCalendar(items) {
         <td>${item.all_day ? "Yes" : "No"}</td>
         <td>${assigned}</td>
         <td>${item.completed ? "Yes" : "No"}</td>
+        <td>${item.by_me ? "Yes" : "No"}</td>
       </tr>
     `;
   });
