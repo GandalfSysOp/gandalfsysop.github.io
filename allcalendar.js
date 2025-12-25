@@ -22,7 +22,8 @@ async function apiGet(path, params = {}) {
 async function loadPeople() {
   const res = await apiGet("people");
   const data = res.data || res;
-  const sel = document.getElementById("assignedFilter");
+
+  const select = document.getElementById("assignedFilter");
 
   data.forEach(p => {
     PEOPLE[p.id] = `${p.first_name} ${p.last_name}`.trim();
@@ -30,7 +31,7 @@ async function loadPeople() {
     const opt = document.createElement("option");
     opt.value = p.id;
     opt.textContent = PEOPLE[p.id];
-    sel.appendChild(opt);
+    select.appendChild(opt);
   });
 }
 
@@ -41,31 +42,27 @@ async function fetchCalendar() {
   const endDate = document.getElementById("endDate").value;
   const view = document.getElementById("viewFilter").value;
   const assigned = document.getElementById("assignedFilter").value;
-  const start = Number(document.getElementById("startInput").value || 0);
-  const limit = Number(document.getElementById("limitInput").value || 25);
 
   if (!startDate || !endDate) {
     alert("Please select start and end dates");
     return;
   }
 
+  // 🔒 STRICT ProofHub calendar params
   const params = {
     startDate,
     endDate,
-    singleEvents: true,
     view,        // events,milestones,tasks
-    assigned,    // all | none | user_id
-    start,
-    limit
+    assigned     // all | none | user_id
   };
 
   console.log("CALENDAR PARAMS →", params);
 
   const res = await apiGet("allcalendars", params);
 
-  if (!res || !res.data) {
+  if (!res || !Array.isArray(res.data)) {
     console.error("Invalid calendar response", res);
-    alert("Invalid calendar request");
+    alert("Invalid calendar request (1301). Check parameters.");
     return;
   }
 
