@@ -3,18 +3,15 @@ const BASE_URL =
 
 /* ================= STATE ================= */
 
-let PEOPLE = {};
-let PROJECTS = {};
 let start = 0;
 let limit = 100;
 let total = 0;
 
 /* ================= API ================= */
 
-async function apiGet(path, params = {}) {
-  const qs = new URLSearchParams(params).toString();
+async function apiGet(path) {
   const url = `${BASE_URL}?path=${encodeURIComponent(
-    path + (qs ? "?" + qs : "")
+    `${path}?start=${start}&limit=${limit}`
   )}`;
 
   const res = await fetch(url);
@@ -22,89 +19,21 @@ async function apiGet(path, params = {}) {
   return res.json();
 }
 
-/* ================= LOAD DROPDOWNS ================= */
+/* ================= FIELD FILTER ================= */
 
-async function loadPeople() {
-  const response = await apiGet("people");
-  const data = response.data || response;
-
-  const select = document.getElementById("assignedFilter");
-
-  data.forEach(p => {
-    PEOPLE[p.id] = `${p.first_name} ${p.last_name}`.trim();
-
-    const opt = document.createElement("option");
-    opt.value = p.id;
-    opt.textContent = PEOPLE[p.id];
-    select.appendChild(opt);
-  });
-}
-
-async function loadProjects() {
-  const response = await apiGet("projects");
-  const data = response.data || response;
-
-  const select = document.getElementById("projectFilter");
-
-  (function walk(obj) {
-    if (!obj || typeof obj !== "object") return;
-
-    if (obj.id && obj.title) {
-      PROJECTS[obj.id] = obj.title;
-
-      const opt = document.createElement("option");
-      opt.value = obj.id;
-      opt.textContent = obj.title;
-      select.appendChild(opt);
-    }
-
-    Object.values(obj).forEach(walk);
-  })(data);
-}
-
-/* ================= FORMAT HELPERS ================= */
-
-function assignedNames(arr) {
-  if (!Array.isArray(arr) || !arr.length) return "—";
-  return arr.map(id => PEOPLE[id] || id).join(", ");
-}
+const EXCLUDED_FIELDS = new Set([
+  "baseline_start_date",
+  "baseline_end_date",
+  "rrule",
+  "template",
+  "form_task",
+  "user_stages"
+]);
 
 /* ================= FETCH TASKS ================= */
 
 async function fetchTasks() {
-  const assignedSelected = [
-    ...document.getElementById("assignedFilter").selectedOptions
-  ].map(o => o.value);
-
-  const projectSelected = [
-    ...document.getElementById("projectFilter").selectedOptions
-  ].map(o => o.value);
-
-  const completedVal = document.getElementById("completedFilter").value;
-  const includeSubVal = document.getElementById("subtaskFilter").value;
-  limit = Number(document.getElementById("limitFilter").value);
-
-  // IMPORTANT: only send params that actually filter
-  const params = { start, limit };
-
-  if (assignedSelected.length) {
-    params.assigned = assignedSelected.join(",");
-  }
-
-  if (projectSelected.length) {
-    params.projects = projectSelected.join(",");
-  }
-
-  if (completedVal !== "all") {
-    params.completed = completedVal;
-  }
-
-  if (includeSubVal === "false") {
-    params.include_subtasks = false;
-  }
-
-  // 🔑 GOOGLE APPS SCRIPT RESPONSE FIX
-  const response = await apiGet("alltodo", params);
+  const response = await apiGet("alltodo");
   const data = response.data || response;
 
   total = data.total_count || 0;
@@ -121,7 +50,7 @@ function renderTasks(tasks) {
   if (!tasks.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center text-muted">
+        <td class="text-center text-muted">
           No tasks found
         </td>
       </tr>
@@ -132,19 +61,37 @@ function renderTasks(tasks) {
   tasks.forEach(task => {
     const tr = document.createElement("tr");
 
-    tr.innerHTML = `
-      <td>${task.ticket || "—"}</td>
-      <td>${task.title}</td>
-      <td>${task.project?.name || "—"}</td>
-      <td>${assignedNames(task.assigned)}</td>
-      <td>${task.stage?.name || "—"}</td>
-      <td>${task.completed ? "Yes" : "No"}</td>
-      <td>${task.due_date || "—"}</td>
-    `;
+    // Build ONE cell with structured fields
+    let html = `<td style="white-space:normal;">`;
+
+    Object.keys(task).forEach(key => {
+      if (EXCLUDED_FIELDS.has(key)) return;
+
+      let value = task[key];
+
+      if (value === null || value === undefined) {
+        value = "-";
+      } else if (Array.isArray(value)) {
+        value = value.length ? JSON.stringify(value) : "[]";
+      } else if (typeof value === "object") {
+        value = JSON.stringify(value);
+      }
+
+      html += `
+        <div style="margin-bottom:4px;">
+          <strong>${key}</strong>: ${value}
+        </div>
+      `;
+    });
+
+    html += `</td>`;
+    tr.innerHTML = html;
 
     tbody.appendChild(tr);
   });
 }
+
+/* ================= PAGINATION ================= */
 
 function renderPageInfo() {
   const from = total === 0 ? 0 : start + 1;
@@ -153,8 +100,6 @@ function renderPageInfo() {
   document.getElementById("pageInfo").textContent =
     `Showing ${from}–${to} of ${total}`;
 }
-
-/* ================= PAGINATION ================= */
 
 function nextPage() {
   if (start + limit < total) {
@@ -170,18 +115,8 @@ function prevPage() {
   }
 }
 
-function applyFilters() {
-  start = 0;
-  fetchTasks();
-}
-
 /* ================= INIT ================= */
 
-(async function init() {
-  try {
-    await Promise.all([loadPeople(), loadProjects()]);
-    fetchTasks();
-  } catch (e) {
-    console.error("Initialization error:", e);
-  }
-})();
+document.addEventListener("DOMContentLoaded", () => {
+  fetchTasks();
+});
