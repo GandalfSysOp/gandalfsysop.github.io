@@ -5,6 +5,7 @@ const BASE_URL =
 
 let PEOPLE = {};
 let PROJECTS = {};
+let LABELS = {};          // ✅ NEW (label id → name)
 let CURRENT_TASKS = [];
 
 /* ================= API ================= */
@@ -59,6 +60,15 @@ async function loadProjects() {
   })(res.data || res);
 }
 
+async function loadLabels() {
+  const res = await apiGet("labels");
+  const data = res.data || res;
+
+  data.forEach(l => {
+    LABELS[l.id] = l.name;
+  });
+}
+
 /* ================= FETCH ================= */
 
 async function fetchTasks() {
@@ -80,10 +90,9 @@ async function fetchTasks() {
   const params = {
     start,
     limit,
-    completed // all | true | false (always sent)
+    completed
   };
 
-  // 🔑 Assigned logic (exactly as clarified)
   if (assigned === "all_assigned") {
     params.assigned = "all_assigned";
     params.include_unassigned = false;
@@ -122,7 +131,7 @@ function renderTasks() {
   if (!CURRENT_TASKS.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="10" class="text-center text-muted">
+        <td colspan="11" class="text-center text-muted">
           No tasks found
         </td>
       </tr>`;
@@ -162,6 +171,11 @@ function renderTasks() {
 }
 
 function renderDetails(t) {
+  const labels =
+    t.labels && t.labels.length
+      ? t.labels.map(id => LABELS[id] || id).join(", ")
+      : "—";
+
   const custom =
     t.custom_fields?.map(f => `${f.title}: ${f.value || "—"}`).join("<br>") || "—";
 
@@ -189,7 +203,7 @@ function renderDetails(t) {
 
       <div class="col-md-3">
         <span class="detail-label">Labels:</span>
-        ${t.labels?.join(", ") || "—"}
+        ${labels}
       </div>
 
       <div class="col-md-3">
@@ -232,4 +246,5 @@ function toggleDetails(i) {
 (async function init() {
   await loadPeople();
   await loadProjects();
+  await loadLabels();   // ✅ NEW
 })();
