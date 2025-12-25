@@ -140,6 +140,7 @@ function renderTasks() {
         <td>
           <button class="btn btn-link btn-sm" onclick="toggleDetails(${i})">+</button>
         </td>
+        <td>${t.id}</td>
         <td>${t.ticket}</td>
         <td>${t.title}</td>
         <td>${t.project?.name || "—"}</td>
@@ -152,7 +153,7 @@ function renderTasks() {
       </tr>
 
       <tr id="details-${i}" class="details-row" style="display:none">
-        <td colspan="10">
+        <td colspan="11">
           ${renderDetails(t)}
         </td>
       </tr>
