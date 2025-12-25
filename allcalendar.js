@@ -4,15 +4,12 @@ const BASE_URL =
 /* ================= STATE ================= */
 
 let PEOPLE = {};
+let ALL_CALENDAR_ITEMS = [];
 
 /* ================= API ================= */
 
-async function apiGet(path, params = {}) {
-  const qs = new URLSearchParams(params).toString();
-  const url = `${BASE_URL}?path=${encodeURIComponent(
-    path + (qs ? "?" + qs : "")
-  )}`;
-
+async function apiGet(path) {
+  const url = `${BASE_URL}?path=${encodeURIComponent(path)}`;
   const res = await fetch(url);
   return res.json();
 }
@@ -35,38 +32,52 @@ async function loadPeople() {
   });
 }
 
-/* ================= FETCH ================= */
+/* ================= FETCH (NO PARAMS) ================= */
 
 async function fetchCalendar() {
-  const startDate = document.getElementById("startDate").value;
-  const endDate = document.getElementById("endDate").value;
-  const view = document.getElementById("viewFilter").value;
-  const assigned = document.getElementById("assignedFilter").value;
+  console.log("Fetching /allcalendars WITHOUT parameters");
 
-  if (!startDate || !endDate) {
-    alert("Please select start and end dates");
-    return;
-  }
-
-  // 🔒 STRICT ProofHub calendar params
-  const params = {
-    startDate,
-    endDate,
-    view,        // events,milestones,tasks
-    assigned     // all | none | user_id
-  };
-
-  console.log("CALENDAR PARAMS →", params);
-
-  const res = await apiGet("allcalendars", params);
+  const res = await apiGet("allcalendars");
 
   if (!res || !Array.isArray(res.data)) {
     console.error("Invalid calendar response", res);
-    alert("Invalid calendar request (1301). Check parameters.");
+    alert("Calendar API rejected the request.");
     return;
   }
 
-  renderCalendar(res.data);
+  ALL_CALENDAR_ITEMS = res.data;
+  applyClientFilters();
+}
+
+/* ================= CLIENT-SIDE FILTERS ================= */
+
+function applyClientFilters() {
+  const view = document.getElementById("viewFilter").value;
+  const assigned = document.getElementById("assignedFilter").value;
+
+  let filtered = [...ALL_CALENDAR_ITEMS];
+
+  // VIEW FILTER
+  if (view !== "events,milestones,tasks") {
+    const allowed = view.split(",");
+    filtered = filtered.filter(item =>
+      allowed.includes(item.type?.toLowerCase())
+    );
+  }
+
+  // ASSIGNED FILTER
+  if (assigned === "none") {
+    filtered = filtered.filter(
+      item => !item.assigned || item.assigned.length === 0
+    );
+  } else if (assigned !== "all") {
+    const uid = Number(assigned);
+    filtered = filtered.filter(
+      item => item.assigned && item.assigned.includes(uid)
+    );
+  }
+
+  renderCalendar(filtered);
 }
 
 /* ================= RENDER ================= */
@@ -86,7 +97,7 @@ function renderCalendar(items) {
   }
 
   items.forEach(item => {
-    const assigned =
+    const assignedNames =
       item.assigned?.map(id => PEOPLE[id] || id).join(", ") || "—";
 
     tbody.innerHTML += `
@@ -98,7 +109,7 @@ function renderCalendar(items) {
         <td>${item.start}</td>
         <td>${item.end}</td>
         <td>${item.all_day ? "Yes" : "No"}</td>
-        <td>${assigned}</td>
+        <td>${assignedNames}</td>
         <td>${item.completed ? "Yes" : "No"}</td>
         <td>${item.by_me ? "Yes" : "No"}</td>
       </tr>
