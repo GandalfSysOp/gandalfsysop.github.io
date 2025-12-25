@@ -6,8 +6,7 @@ const BASE_URL =
 let start = 0;
 let limit = 100;
 let total = 0;
-
-let CURRENT_TASKS = []; // tasks from API (current page)
+let CURRENT_TASKS = [];
 
 /* ================= API ================= */
 
@@ -19,6 +18,26 @@ async function apiGet(path) {
   const res = await fetch(url);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+/* ================= SAFE UNWRAP ================= */
+
+function unwrapTodos(response) {
+  let obj = response;
+
+  // Drill down until we find `todos`
+  while (obj && typeof obj === "object") {
+    if (Array.isArray(obj.todos)) {
+      return obj;
+    }
+    if (obj.data) {
+      obj = obj.data;
+    } else {
+      break;
+    }
+  }
+
+  return { total_count: 0, todos: [] };
 }
 
 /* ================= EXCLUDED FIELDS ================= */
@@ -35,37 +54,28 @@ const EXCLUDED_FIELDS = new Set([
 /* ================= FETCH ================= */
 
 async function fetchTasks() {
-  const response = await apiGet("alltodo");
-  const data = response.data || response;
+  try {
+    const response = await apiGet("alltodo");
 
-  CURRENT_TASKS = data.todos || [];
-  total = data.total_count || 0;
+    // 🔑 THIS IS THE CRITICAL LINE
+    const data = unwrapTodos(response);
 
-  applyClientFilters();
-  renderPageInfo();
+    console.log("UNWRAPPED DATA:", data); // keep this for now
+
+    CURRENT_TASKS = data.todos;
+    total = data.total_count || data.todos.length;
+
+    applyClientFilters();
+    renderPageInfo();
+  } catch (e) {
+    console.error("Fetch error:", e);
+  }
 }
 
 /* ================= CLIENT-SIDE FILTERING ================= */
 
 function applyClientFilters() {
-  const search = document.getElementById("searchInput").value.toLowerCase();
-  const completed = document.getElementById("completedFilter").value;
-
-  let filtered = CURRENT_TASKS;
-
-  if (search) {
-    filtered = filtered.filter(t =>
-      (t.title || "").toLowerCase().includes(search) ||
-      (t.description || "").toLowerCase().includes(search)
-    );
-  }
-
-  if (completed !== "all") {
-    const boolVal = completed === "true";
-    filtered = filtered.filter(t => t.completed === boolVal);
-  }
-
-  renderTasks(filtered);
+  renderTasks(CURRENT_TASKS);
 }
 
 /* ================= RENDER ================= */
@@ -74,7 +84,7 @@ function renderTasks(tasks) {
   const tbody = document.getElementById("tasksTable");
   tbody.innerHTML = "";
 
-  if (!tasks.length) {
+  if (!tasks || !tasks.length) {
     tbody.innerHTML = `
       <tr>
         <td class="text-center text-muted">No tasks found</td>
@@ -117,6 +127,7 @@ function renderTasks(tasks) {
 function renderPageInfo() {
   const from = total === 0 ? 0 : start + 1;
   const to = Math.min(start + limit, total);
+
   document.getElementById("pageInfo").textContent =
     `Showing ${from}–${to} of ${total}`;
 }
