@@ -20,24 +20,37 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ================= SAFE UNWRAP ================= */
+/* ================= DEEP FIND TODOS ================= */
 
-function unwrapTodos(response) {
-  let obj = response;
+/**
+ * Recursively search an object to find:
+ * - an array of task-like objects
+ * - total_count if present
+ */
+function extractTodosDeep(obj) {
+  let foundTodos = null;
+  let foundTotal = null;
 
-  // Drill down until we find `todos`
-  while (obj && typeof obj === "object") {
-    if (Array.isArray(obj.todos)) {
-      return obj;
+  function walk(node) {
+    if (!node || typeof node !== "object") return;
+
+    // Found todos
+    if (Array.isArray(node.todos)) {
+      foundTodos = node.todos;
+      if (typeof node.total_count === "number") {
+        foundTotal = node.total_count;
+      }
     }
-    if (obj.data) {
-      obj = obj.data;
-    } else {
-      break;
-    }
+
+    Object.values(node).forEach(walk);
   }
 
-  return { total_count: 0, todos: [] };
+  walk(obj);
+
+  return {
+    todos: foundTodos || [],
+    total_count: foundTotal ?? (foundTodos ? foundTodos.length : 0)
+  };
 }
 
 /* ================= EXCLUDED FIELDS ================= */
@@ -57,25 +70,20 @@ async function fetchTasks() {
   try {
     const response = await apiGet("alltodo");
 
-    // 🔑 THIS IS THE CRITICAL LINE
-    const data = unwrapTodos(response);
+    console.log("RAW RESPONSE FROM GAS:", response);
 
-    console.log("UNWRAPPED DATA:", data); // keep this for now
+    const extracted = extractTodosDeep(response);
 
-    CURRENT_TASKS = data.todos;
-    total = data.total_count || data.todos.length;
+    console.log("EXTRACTED TODOS:", extracted);
 
-    applyClientFilters();
+    CURRENT_TASKS = extracted.todos;
+    total = extracted.total_count;
+
+    renderTasks(CURRENT_TASKS);
     renderPageInfo();
-  } catch (e) {
-    console.error("Fetch error:", e);
+  } catch (err) {
+    console.error("Fetch error:", err);
   }
-}
-
-/* ================= CLIENT-SIDE FILTERING ================= */
-
-function applyClientFilters() {
-  renderTasks(CURRENT_TASKS);
 }
 
 /* ================= RENDER ================= */
@@ -87,7 +95,9 @@ function renderTasks(tasks) {
   if (!tasks || !tasks.length) {
     tbody.innerHTML = `
       <tr>
-        <td class="text-center text-muted">No tasks found</td>
+        <td class="text-center text-muted">
+          No tasks found
+        </td>
       </tr>
     `;
     return;
@@ -124,6 +134,8 @@ function renderTasks(tasks) {
   });
 }
 
+/* ================= PAGINATION ================= */
+
 function renderPageInfo() {
   const from = total === 0 ? 0 : start + 1;
   const to = Math.min(start + limit, total);
@@ -131,8 +143,6 @@ function renderPageInfo() {
   document.getElementById("pageInfo").textContent =
     `Showing ${from}–${to} of ${total}`;
 }
-
-/* ================= PAGINATION ================= */
 
 function nextPage() {
   if (start + limit < total) {
