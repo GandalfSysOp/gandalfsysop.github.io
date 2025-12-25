@@ -1,14 +1,16 @@
 const BASE_URL =
   "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
-/* API */
+/* ================= API ================= */
+
 async function apiGet(path) {
   const res = await fetch(`${BASE_URL}?path=${encodeURIComponent(path)}`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-/* Project finder */
+/* ================= PROJECT FINDER ================= */
+
 function findProjectsDeep(data) {
   const results = [];
   const seen = new Set();
@@ -26,15 +28,17 @@ function findProjectsDeep(data) {
   return results;
 }
 
-/* Helpers */
+/* ================= HELPERS ================= */
+
 const formatDate = d => (d ? new Date(d).toLocaleDateString() : "-");
 
 function formatAssigned(a) {
   if (!Array.isArray(a) || !a.length) return "-";
-  return `<div class="assigned-text">${a.join("<br>")}</div>`;
+  return `<div class="assigned-text">${a.map(id => `${id},`).join("<br>")}</div>`;
 }
 
-/* JSON Beautifier */
+/* ================= JSON FORMATTER ================= */
+
 function syntaxHighlight(json) {
   return json.replace(
     /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
@@ -55,7 +59,8 @@ function setOutput(data) {
   el.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
 }
 
-/* Render */
+/* ================= RENDER ================= */
+
 function renderTable(projects) {
   document.getElementById("totalProjects").textContent = projects.length;
 
@@ -83,7 +88,8 @@ function renderTable(projects) {
   });
 }
 
-/* Actions */
+/* ================= ACTION ================= */
+
 async function fetchProjects() {
   const json = await apiGet("projects");
   const projects = findProjectsDeep(json);
