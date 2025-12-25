@@ -13,7 +13,10 @@ let total = 0;
 
 async function apiGet(path, params = {}) {
   const qs = new URLSearchParams(params).toString();
-  const url = `${BASE_URL}?path=${encodeURIComponent(path + (qs ? "?" + qs : ""))}`;
+  const url = `${BASE_URL}?path=${encodeURIComponent(
+    path + (qs ? "?" + qs : "")
+  )}`;
+
   const res = await fetch(url);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -22,36 +25,44 @@ async function apiGet(path, params = {}) {
 /* ================= LOAD DROPDOWNS ================= */
 
 async function loadPeople() {
-  const people = await apiGet("people");
-  const sel = document.getElementById("assignedFilter");
+  const response = await apiGet("people");
+  const data = response.data || response;
 
-  people.forEach(p => {
-    PEOPLE[p.id] = `${p.first_name} ${p.last_name}`;
-    const o = document.createElement("option");
-    o.value = p.id;
-    o.textContent = PEOPLE[p.id];
-    sel.appendChild(o);
+  const select = document.getElementById("assignedFilter");
+
+  data.forEach(p => {
+    PEOPLE[p.id] = `${p.first_name} ${p.last_name}`.trim();
+
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = PEOPLE[p.id];
+    select.appendChild(opt);
   });
 }
 
 async function loadProjects() {
-  const raw = await apiGet("projects");
-  const sel = document.getElementById("projectFilter");
+  const response = await apiGet("projects");
+  const data = response.data || response;
+
+  const select = document.getElementById("projectFilter");
 
   (function walk(obj) {
     if (!obj || typeof obj !== "object") return;
+
     if (obj.id && obj.title) {
       PROJECTS[obj.id] = obj.title;
-      const o = document.createElement("option");
-      o.value = obj.id;
-      o.textContent = obj.title;
-      sel.appendChild(o);
+
+      const opt = document.createElement("option");
+      opt.value = obj.id;
+      opt.textContent = obj.title;
+      select.appendChild(opt);
     }
+
     Object.values(obj).forEach(walk);
-  })(raw);
+  })(data);
 }
 
-/* ================= FORMAT ================= */
+/* ================= FORMAT HELPERS ================= */
 
 function assignedNames(arr) {
   if (!Array.isArray(arr) || !arr.length) return "—";
@@ -61,20 +72,40 @@ function assignedNames(arr) {
 /* ================= FETCH TASKS ================= */
 
 async function fetchTasks() {
-  const assigned = [...document.getElementById("assignedFilter").selectedOptions].map(o => o.value);
-  const projects = [...document.getElementById("projectFilter").selectedOptions].map(o => o.value);
-  const completed = document.getElementById("completedFilter").value;
-  const includeSub = document.getElementById("subtaskFilter").value;
+  const assignedSelected = [
+    ...document.getElementById("assignedFilter").selectedOptions
+  ].map(o => o.value);
+
+  const projectSelected = [
+    ...document.getElementById("projectFilter").selectedOptions
+  ].map(o => o.value);
+
+  const completedVal = document.getElementById("completedFilter").value;
+  const includeSubVal = document.getElementById("subtaskFilter").value;
   limit = Number(document.getElementById("limitFilter").value);
 
+  // IMPORTANT: only send params that actually filter
   const params = { start, limit };
 
-  if (assigned.length) params.assigned = assigned.join(",");
-  if (projects.length) params.projects = projects.join(",");
-  if (completed !== "all") params.completed = completed;
-  if (includeSub === "false") params.include_subtasks = false;
+  if (assignedSelected.length) {
+    params.assigned = assignedSelected.join(",");
+  }
 
-  const data = await apiGet("alltodo", params);
+  if (projectSelected.length) {
+    params.projects = projectSelected.join(",");
+  }
+
+  if (completedVal !== "all") {
+    params.completed = completedVal;
+  }
+
+  if (includeSubVal === "false") {
+    params.include_subtasks = false;
+  }
+
+  // 🔑 GOOGLE APPS SCRIPT RESPONSE FIX
+  const response = await apiGet("alltodo", params);
+  const data = response.data || response;
 
   total = data.total_count || 0;
   renderTasks(data.todos || []);
@@ -93,30 +124,34 @@ function renderTasks(tasks) {
         <td colspan="7" class="text-center text-muted">
           No tasks found
         </td>
-      </tr>`;
+      </tr>
+    `;
     return;
   }
 
-  tasks.forEach(t => {
+  tasks.forEach(task => {
     const tr = document.createElement("tr");
+
     tr.innerHTML = `
-      <td>${t.ticket || "—"}</td>
-      <td>${t.title}</td>
-      <td>${t.project?.name || "—"}</td>
-      <td>${assignedNames(t.assigned)}</td>
-      <td>${t.stage?.name || "—"}</td>
-      <td>${t.completed ? "Yes" : "No"}</td>
-      <td>${t.due_date || "—"}</td>
+      <td>${task.ticket || "—"}</td>
+      <td>${task.title}</td>
+      <td>${task.project?.name || "—"}</td>
+      <td>${assignedNames(task.assigned)}</td>
+      <td>${task.stage?.name || "—"}</td>
+      <td>${task.completed ? "Yes" : "No"}</td>
+      <td>${task.due_date || "—"}</td>
     `;
+
     tbody.appendChild(tr);
   });
 }
 
 function renderPageInfo() {
-  const from = start + 1;
+  const from = total === 0 ? 0 : start + 1;
   const to = Math.min(start + limit, total);
+
   document.getElementById("pageInfo").textContent =
-    `Showing ${from}-${to} of ${total}`;
+    `Showing ${from}–${to} of ${total}`;
 }
 
 /* ================= PAGINATION ================= */
@@ -143,6 +178,10 @@ function applyFilters() {
 /* ================= INIT ================= */
 
 (async function init() {
-  await Promise.all([loadPeople(), loadProjects()]);
-  fetchTasks();
+  try {
+    await Promise.all([loadPeople(), loadProjects()]);
+    fetchTasks();
+  } catch (e) {
+    console.error("Initialization error:", e);
+  }
 })();
