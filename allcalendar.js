@@ -17,7 +17,7 @@ async function apiGet(path) {
 /* ================= LOAD PEOPLE ================= */
 
 async function loadPeople() {
-  const res = await apiGet("people");
+  const res = await apiGet("v3/people");
   const data = res.data || res;
 
   const select = document.getElementById("assignedFilter");
@@ -35,9 +35,9 @@ async function loadPeople() {
 /* ================= FETCH (NO PARAMS) ================= */
 
 async function fetchCalendar() {
-  console.log("Fetching /allcalendars WITHOUT parameters");
+  console.log("Fetching v3/allcalendars");
 
-  const res = await apiGet("allcalendars");
+  const res = await apiGet("v3/allcalendars");
 
   if (!res || !Array.isArray(res.data)) {
     console.error("Invalid calendar response", res);
@@ -49,7 +49,7 @@ async function fetchCalendar() {
   applyClientFilters();
 }
 
-/* ================= CLIENT-SIDE FILTERS ================= */
+/* ================= CLIENT FILTERS ================= */
 
 function applyClientFilters() {
   const view = document.getElementById("viewFilter").value;
