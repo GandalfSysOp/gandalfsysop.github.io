@@ -7,17 +7,17 @@ let start = 0;
 let limit = 100;
 let total = 0;
 
-let ALL_TASKS = [];
-let FILTERED_TASKS = [];
-
 let PEOPLE = {};
+let CURRENT_TASKS = [];
 
 /* ================= API ================= */
 
-async function apiGet(path) {
+async function apiGet(path, params = {}) {
+  const qs = new URLSearchParams(params).toString();
   const url = `${BASE_URL}?path=${encodeURIComponent(
-    `${path}?start=${start}&limit=${limit}`
+    path + (qs ? "?" + qs : "")
   )}`;
+
   const res = await fetch(url);
   return res.json();
 }
@@ -25,15 +25,9 @@ async function apiGet(path) {
 /* ================= NORMALIZE ================= */
 
 function normalizeAllTodoResponse(res) {
-  if (Array.isArray(res)) {
-    return { todos: res, total_count: res.length };
-  }
-  if (res.todos) {
-    return { todos: res.todos, total_count: res.total_count };
-  }
-  if (res.data?.todos) {
-    return { todos: res.data.todos, total_count: res.data.total_count };
-  }
+  if (Array.isArray(res)) return { todos: res, total_count: res.length };
+  if (res.todos) return res;
+  if (res.data?.todos) return res.data;
   return { todos: [], total_count: 0 };
 }
 
@@ -43,99 +37,127 @@ async function loadPeople() {
   const res = await apiGet("people");
   const people = res.data || res;
 
-  const assignedSelect = document.getElementById("assignedFilter");
+  const sel = document.getElementById("assignedFilter");
+  sel.innerHTML = `<option value="">All</option>`;
 
   people.forEach(p => {
     PEOPLE[p.id] = `${p.first_name} ${p.last_name}`.trim();
-
     const opt = document.createElement("option");
     opt.value = p.id;
     opt.textContent = PEOPLE[p.id];
-    assignedSelect.appendChild(opt);
+    sel.appendChild(opt);
   });
 }
 
 /* ================= FETCH TASKS ================= */
 
-async function fetchTasks() {
+async function fetchTasks(extraParams = {}) {
   await loadPeople();
 
-  const res = await apiGet("alltodo");
+  const params = {
+    start,
+    limit,
+    ...extraParams
+  };
+
+  const res = await apiGet("alltodo", params);
   const { todos, total_count } = normalizeAllTodoResponse(res);
 
-  ALL_TASKS = todos;
-  FILTERED_TASKS = todos;
+  CURRENT_TASKS = todos;
   total = total_count;
 
-  populateProjectFilter();
-  applyFilters();
+  renderTasks();
   renderPageInfo();
 }
 
 /* ================= FILTERS ================= */
 
-function populateProjectFilter() {
-  const select = document.getElementById("projectFilter");
-  select.innerHTML = `<option value="">All</option>`;
-
-  const projects = [...new Set(ALL_TASKS.map(t => t.project?.id).filter(Boolean))];
-
-  projects.forEach(pid => {
-    const name = ALL_TASKS.find(t => t.project?.id === pid)?.project?.name;
-    const opt = document.createElement("option");
-    opt.value = pid;
-    opt.textContent = name || pid;
-    select.appendChild(opt);
-  });
-}
-
 function applyFilters() {
-  const project = document.getElementById("projectFilter").value;
   const assigned = document.getElementById("assignedFilter").value;
   const completed = document.getElementById("completedFilter").value;
 
-  FILTERED_TASKS = ALL_TASKS.filter(t => {
-    if (project && t.project?.id != project) return false;
-    if (assigned && !t.assigned?.includes(Number(assigned))) return false;
-    if (completed && String(t.completed) !== completed) return false;
-    return true;
-  });
+  const params = {};
+  if (assigned) params.assigned = assigned;
+  if (completed) params.completed = completed;
 
-  renderTasks(FILTERED_TASKS);
+  start = 0;
+  fetchTasks(params);
 }
 
 /* ================= RENDER ================= */
 
-function renderTasks(tasks) {
+function renderTasks() {
   const tbody = document.getElementById("tasksTable");
   tbody.innerHTML = "";
 
-  if (!tasks.length) {
+  if (!CURRENT_TASKS.length) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="text-center text-muted">No tasks found</td>
+        <td colspan="8" class="text-center text-muted">No tasks found</td>
       </tr>`;
     return;
   }
 
-  tasks.forEach(t => {
-    const assignedNames =
+  CURRENT_TASKS.forEach((t, i) => {
+    const assigned =
       t.assigned?.map(id => PEOPLE[id] || id).join(", ") || "—";
-
-    const creatorName = PEOPLE[t.creator?.id] || t.creator?.id || "—";
+    const creator = PEOPLE[t.creator?.id] || t.creator?.id || "—";
 
     tbody.innerHTML += `
       <tr>
+        <td>
+          <button class="btn btn-sm btn-link" onclick="toggleDetails(${i})">+</button>
+        </td>
         <td>${t.ticket}</td>
         <td>${t.title}</td>
         <td>${t.project?.name || "—"}</td>
-        <td>${assignedNames}</td>
-        <td>${creatorName}</td>
+        <td>${assigned}</td>
+        <td>${creator}</td>
         <td>${t.completed ? "Completed" : "Open"}</td>
         <td>${t.due_date || "—"}</td>
-      </tr>`;
+      </tr>
+
+      <tr id="details-${i}" class="details-row" style="display:none">
+        <td colspan="8">
+          ${renderDetails(t)}
+        </td>
+      </tr>
+    `;
   });
 }
+
+function renderDetails(t) {
+  return `
+    <div class="row g-3">
+      <div class="col-md-4"><span class="detail-label">Description:</span> ${t.description || "—"}</div>
+      <div class="col-md-4"><span class="detail-label">Start Date:</span> ${t.start_date || "—"}</div>
+      <div class="col-md-4"><span class="detail-label">Parent ID:</span> ${t.parent_id || "—"}</div>
+
+      <div class="col-md-4"><span class="detail-label">Estimated:</span> ${t.estimated_hours || 0}h ${t.estimated_mins || 0}m</div>
+      <div class="col-md-4"><span class="detail-label">Logged:</span> ${t.logged_hours || 0}h ${t.logged_mins || 0}m</div>
+      <div class="col-md-4"><span class="detail-label">Progress:</span> ${t.percent_progress || 0}%</div>
+
+      <div class="col-md-4"><span class="detail-label">Labels:</span> ${t.labels?.join(", ") || "—"}</div>
+      <div class="col-md-4"><span class="detail-label">Attachments:</span> ${t.attachments?.length || 0}</div>
+      <div class="col-md-4"><span class="detail-label">By Me:</span> ${t.by_me ? "Yes" : "No"}</div>
+
+      <div class="col-md-6"><span class="detail-label">Created:</span> ${t.created_at}</div>
+      <div class="col-md-6"><span class="detail-label">Updated:</span> ${t.updated_at}</div>
+
+      <div class="col-md-12">
+        <span class="detail-label">Custom Fields:</span>
+        <pre class="mb-0">${JSON.stringify(t.custom_fields || [], null, 2)}</pre>
+      </div>
+    </div>
+  `;
+}
+
+function toggleDetails(i) {
+  const row = document.getElementById(`details-${i}`);
+  row.style.display = row.style.display === "none" ? "table-row" : "none";
+}
+
+/* ================= PAGINATION ================= */
 
 function renderPageInfo() {
   const from = total ? start + 1 : 0;
@@ -143,8 +165,6 @@ function renderPageInfo() {
   document.getElementById("pageInfo").textContent =
     `Showing ${from}–${to} of ${total}`;
 }
-
-/* ================= PAGINATION ================= */
 
 function nextPage() {
   start += limit;
