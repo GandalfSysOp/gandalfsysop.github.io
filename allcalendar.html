@@ -45,17 +45,7 @@
   <div class="card p-3 mb-3">
     <div class="row g-3">
 
-      <div class="col-md-3">
-        <label>Start Date</label>
-        <input id="startDate" type="date" class="form-control form-control-sm" />
-      </div>
-
-      <div class="col-md-3">
-        <label>End Date</label>
-        <input id="endDate" type="date" class="form-control form-control-sm" />
-      </div>
-
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label>View</label>
         <select id="viewFilter" class="form-select form-select-sm">
           <option value="events,milestones,tasks">Events + Milestones + Tasks</option>
@@ -65,7 +55,7 @@
         </select>
       </div>
 
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label>Assigned</label>
         <select id="assignedFilter" class="form-select form-select-sm">
           <option value="all">All (assigned to anyone)</option>
@@ -73,8 +63,8 @@
         </select>
       </div>
 
-      <div class="col-md-12 text-end">
-        <button class="btn btn-primary btn-sm" onclick="fetchCalendar()">
+      <div class="col-md-4 d-flex align-items-end">
+        <button class="btn btn-primary btn-sm w-100" onclick="fetchCalendar()">
           Fetch Calendar
         </button>
       </div>
