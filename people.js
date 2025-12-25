@@ -9,6 +9,16 @@ async function apiGet(path) {
   return res.json();
 }
 
+/* ================= CONFIG ================= */
+
+/* Fields we explicitly do NOT want to show */
+const EXCLUDED_FIELDS = [
+  "cell",
+  "profile_color",
+  "send_invite",
+  "initials"
+];
+
 /* ================= HELPERS ================= */
 
 function formatValue(value) {
@@ -56,12 +66,15 @@ function renderPeople(people) {
         </div>
       </div>
 
-      ${Object.keys(person).map(key => `
-        <div class="field-row">
-          <div class="label">${key.replace(/_/g, " ")}</div>
-          <div class="value">${formatValue(person[key])}</div>
-        </div>
-      `).join("")}
+      ${Object.keys(person)
+        .filter(key => !EXCLUDED_FIELDS.includes(key))
+        .map(key => `
+          <div class="field-row">
+            <div class="label">${key.replace(/_/g, " ")}</div>
+            <div class="value">${formatValue(person[key])}</div>
+          </div>
+        `)
+        .join("")}
 
       <div class="json-panel">
         <pre style="line-height:1.6">${formatJsonPretty(person)}</pre>
@@ -77,7 +90,6 @@ function renderPeople(people) {
 async function fetchPeople() {
   const json = await apiGet("people");
 
-  // API returns array directly
   const people = Array.isArray(json) ? json : [];
 
   if (!people.length) {
