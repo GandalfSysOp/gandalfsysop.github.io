@@ -31,7 +31,7 @@
     /* LAYOUT */
     .layout {
       display: grid;
-      grid-template-columns: 210px 1fr;
+      grid-template-columns: 170px 1fr; /* ⬅ reduced sidebar width */
       min-height: calc(100vh - 56px);
     }
 
@@ -39,18 +39,18 @@
     .sidebar {
       background: #020617;
       color: #cbd5e1;
-      padding: 14px;
+      padding: 12px;
     }
 
     .nav-item {
-      padding: 8px 10px;
+      padding: 7px 8px;
       border-radius: 8px;
       margin-bottom: 6px;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       cursor: pointer;
-      font-size: 12px;
+      font-size: 11.5px;
     }
 
     .nav-item.active,
@@ -83,6 +83,7 @@
     table {
       width: 100%;
       font-size: 11.5px;
+      table-layout: fixed; /* ⬅ enables width control */
     }
 
     thead th {
@@ -102,6 +103,12 @@
     tbody tr:hover {
       background: #eef2ff;
       cursor: pointer;
+    }
+
+    /* Column widths */
+    th.assigned-col,
+    td.assigned-col {
+      width: 140px; /* ⬅ assigned column widened */
     }
 
     /* Assigned IDs – simple text */
@@ -183,7 +190,7 @@
               <th>Start</th>
               <th>End</th>
               <th>Status</th>
-              <th>Assigned</th>
+              <th class="assigned-col">Assigned</th>
               <th>Category ID</th>
               <th>Creator</th>
               <th>Manager</th>
