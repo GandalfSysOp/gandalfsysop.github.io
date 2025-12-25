@@ -20,7 +20,6 @@
       color: #fff;
       padding: 14px 20px;
       font-weight: 600;
-      font-size: 14px;
     }
 
     .card {
@@ -55,36 +54,57 @@
 
 <div class="container-fluid mt-3">
 
-  <!-- ACTION BAR -->
-  <div class="card p-3 mb-3 d-flex flex-row justify-content-between">
-    <div class="fw-semibold">Task Explorer</div>
-    <button class="btn btn-primary btn-sm" onclick="fetchTasks()">Fetch Tasks</button>
-  </div>
-
   <!-- FILTERS -->
   <div class="card p-3 mb-3">
     <div class="row g-3">
+
       <div class="col-md-3">
-        <label class="fw-semibold">Assigned</label>
+        <label>Assigned</label>
         <select id="assignedFilter" class="form-select form-select-sm">
-          <option value="">All</option>
+          <option value="all_assigned">All</option>
         </select>
       </div>
 
       <div class="col-md-3">
-        <label class="fw-semibold">Completed</label>
-        <select id="completedFilter" class="form-select form-select-sm">
+        <label>Project</label>
+        <select id="projectFilter" class="form-select form-select-sm">
           <option value="">All</option>
+        </select>
+      </div>
+
+      <div class="col-md-2">
+        <label>Completed</label>
+        <select id="completedFilter" class="form-select form-select-sm">
+          <option value="all">All</option>
           <option value="true">Completed</option>
           <option value="false">Incomplete</option>
         </select>
       </div>
 
-      <div class="col-md-2 d-flex align-items-end">
-        <button class="btn btn-secondary btn-sm" onclick="applyFilters()">
-          Apply Filters
+      <div class="col-md-2">
+        <label>Include Subtasks</label>
+        <select id="subtaskFilter" class="form-select form-select-sm">
+          <option value="true">Yes</option>
+          <option value="false">No</option>
+        </select>
+      </div>
+
+      <div class="col-md-1">
+        <label>Start</label>
+        <input id="startInput" type="number" class="form-control form-control-sm" value="0" />
+      </div>
+
+      <div class="col-md-1">
+        <label>Limit</label>
+        <input id="limitInput" type="number" class="form-control form-control-sm" value="100" />
+      </div>
+
+      <div class="col-md-12 text-end">
+        <button class="btn btn-primary btn-sm" onclick="fetchTasks()">
+          Fetch Tasks
         </button>
       </div>
+
     </div>
   </div>
 
@@ -96,22 +116,17 @@
           <tr>
             <th></th>
             <th>Ticket</th>
-            <th>Title</th>
+            <th style="max-width:220px;">Title</th>
             <th>Project</th>
             <th>Assigned</th>
             <th>Creator</th>
+            <th>Start</th>
             <th>Status</th>
-            <th>Due</th>
+            <th>By Me</th>
           </tr>
         </thead>
         <tbody id="tasksTable"></tbody>
       </table>
-    </div>
-
-    <div class="d-flex justify-content-between align-items-center">
-      <button class="btn btn-outline-secondary btn-sm" onclick="prevPage()">← Prev</button>
-      <div id="pageInfo" class="text-muted"></div>
-      <button class="btn btn-outline-secondary btn-sm" onclick="nextPage()">Next →</button>
     </div>
   </div>
 
