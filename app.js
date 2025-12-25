@@ -40,24 +40,30 @@ function formatAssigned(a) {
 
 /* ================= JSON FORMATTER ================= */
 
-function syntaxHighlight(json) {
-  return json.replace(
-    /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
-    match => {
-      let cls = "json-number";
-      if (/^"/.test(match)) {
-        cls = /:$/.test(match) ? "json-key" : "json-string";
-      } else if (/true|false/.test(match)) cls = "json-boolean";
-      else if (/null/.test(match)) cls = "json-null";
-      return `<span class="${cls}">${match}</span>`;
-    }
-  );
+function formatJsonPretty(obj) {
+  const json = JSON.stringify(obj, null, 2);
+
+  return json
+    .replace(/"(.*?)":/g, '<span class="json-key">"$1"</span>:')
+    .replace(/: "(.*?)"/g, ': <span class="json-string">"$1"</span>')
+    .replace(/: (\d+)/g, ': <span class="json-number">$1</span>')
+    .replace(/: (true|false)/g, ': <span class="json-boolean">$1</span>')
+    .replace(/: null/g, ': <span class="json-null">null</span>');
 }
 
 function setOutput(data) {
   const el = document.getElementById("output");
   if (!el) return;
-  el.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
+
+  el.innerHTML = `
+    <pre style="
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+    ">
+${formatJsonPretty(data)}
+    </pre>
+  `;
 }
 
 /* ================= RENDER ================= */
