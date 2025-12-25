@@ -153,6 +153,9 @@ function renderTasks() {
         <td>${t.ticket}</td>
         <td>${t.title}</td>
         <td>${t.project?.name || "—"}</td>
+        <td>${t.list?.name || "—"}</td>
+        <td>${t.workflow?.name || "—"}</td>
+        <td>${t.stage?.name || "—"}</td>
         <td>${assigned}</td>
         <td>${creator}</td>
         <td>${t.start_date || "—"}</td>
@@ -162,7 +165,7 @@ function renderTasks() {
       </tr>
 
       <tr id="details-${i}" class="details-row" style="display:none">
-        <td colspan="11">
+        <td colspan="14">
           ${renderDetails(t)}
         </td>
       </tr>
