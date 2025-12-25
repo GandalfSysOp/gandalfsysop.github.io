@@ -20,37 +20,35 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ================= DEEP FIND TODOS ================= */
+/* ================= NORMALIZE RESPONSE ================= */
 
-/**
- * Recursively search an object to find:
- * - an array of task-like objects
- * - total_count if present
- */
-function extractTodosDeep(obj) {
-  let foundTodos = null;
-  let foundTotal = null;
-
-  function walk(node) {
-    if (!node || typeof node !== "object") return;
-
-    // Found todos
-    if (Array.isArray(node.todos)) {
-      foundTodos = node.todos;
-      if (typeof node.total_count === "number") {
-        foundTotal = node.total_count;
-      }
-    }
-
-    Object.values(node).forEach(walk);
+function normalizeAllTodoResponse(response) {
+  // CASE 1: GAS returns array directly ✅
+  if (Array.isArray(response)) {
+    return {
+      todos: response,
+      total_count: response.length
+    };
   }
 
-  walk(obj);
+  // CASE 2: { todos: [...] }
+  if (Array.isArray(response.todos)) {
+    return {
+      todos: response.todos,
+      total_count: response.total_count ?? response.todos.length
+    };
+  }
 
-  return {
-    todos: foundTodos || [],
-    total_count: foundTotal ?? (foundTodos ? foundTodos.length : 0)
-  };
+  // CASE 3: { data: { todos: [...] } }
+  if (response.data && Array.isArray(response.data.todos)) {
+    return {
+      todos: response.data.todos,
+      total_count: response.data.total_count ?? response.data.todos.length
+    };
+  }
+
+  // Fallback (should never happen now)
+  return { todos: [], total_count: 0 };
 }
 
 /* ================= EXCLUDED FIELDS ================= */
@@ -70,19 +68,20 @@ async function fetchTasks() {
   try {
     const response = await apiGet("alltodo");
 
-    console.log("RAW RESPONSE FROM GAS:", response);
+    console.log("RAW RESPONSE:", response);
 
-    const extracted = extractTodosDeep(response);
+    const { todos, total_count } =
+      normalizeAllTodoResponse(response);
 
-    console.log("EXTRACTED TODOS:", extracted);
+    console.log("NORMALIZED:", { todos, total_count });
 
-    CURRENT_TASKS = extracted.todos;
-    total = extracted.total_count;
+    CURRENT_TASKS = todos;
+    total = total_count;
 
     renderTasks(CURRENT_TASKS);
     renderPageInfo();
-  } catch (err) {
-    console.error("Fetch error:", err);
+  } catch (e) {
+    console.error("Fetch error:", e);
   }
 }
 
@@ -92,7 +91,7 @@ function renderTasks(tasks) {
   const tbody = document.getElementById("tasksTable");
   tbody.innerHTML = "";
 
-  if (!tasks || !tasks.length) {
+  if (!tasks.length) {
     tbody.innerHTML = `
       <tr>
         <td class="text-center text-muted">
