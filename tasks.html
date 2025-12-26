@@ -57,14 +57,22 @@
   <!-- INPUTS -->
   <div class="card p-3 mb-3">
     <div class="row g-3 align-items-end">
-      <div class="col-md-3">
-        <label>Project ID</label>
-        <input id="projectId" class="form-control form-control-sm" />
+      <div class="col-md-4">
+        <label>Project</label>
+        <select id="projectSelect" class="form-select form-select-sm">
+          <option value="">Loading projects…</option>
+        </select>
       </div>
+
       <div class="col-md-3">
         <label>Tasklist ID</label>
-        <input id="tasklistId" class="form-control form-control-sm" />
+        <input
+          id="tasklistId"
+          class="form-control form-control-sm"
+          placeholder="Enter Tasklist ID"
+        />
       </div>
+
       <div class="col-md-2">
         <button class="btn btn-success btn-sm w-100" onclick="fetchTasks()">
           Fetch Tasks
