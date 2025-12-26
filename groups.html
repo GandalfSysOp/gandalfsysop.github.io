@@ -32,7 +32,7 @@
     table {
       width: 100%;
       border-collapse: collapse;
-      background: #fff;
+      background: #ffffff;
       border-radius: 10px;
       overflow: hidden;
       box-shadow: 0 6px 16px rgba(0,0,0,0.06);
@@ -40,10 +40,10 @@
 
     th, td {
       padding: 10px 12px;
-      text-align: left;
       font-size: 13px;
-      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
       vertical-align: top;
+      border-bottom: 1px solid #e5e7eb;
     }
 
     th {
@@ -61,7 +61,6 @@
       border-radius: 999px;
       font-size: 11px;
       font-weight: 500;
-      margin-right: 4px;
     }
 
     .yes {
@@ -74,13 +73,14 @@
       color: #991b1b;
     }
 
+    .muted {
+      color: #6b7280;
+      font-size: 12px;
+    }
+
     .assigned {
       font-size: 12px;
       line-height: 1.5;
-    }
-
-    .muted {
-      color: #6b7280;
     }
   </style>
 </head>
@@ -91,7 +91,9 @@
 
   <button onclick="fetchGroups()">Fetch Groups</button>
 
-  <div id="output"></div>
+  <div id="output">
+    <!-- Table injected here -->
+  </div>
 
   <script src="groups.js"></script>
 </body>
