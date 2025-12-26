@@ -38,8 +38,15 @@ function personName(id) {
   return PEOPLE_MAP[id] || id || "-";
 }
 
-function bool(val) {
+function yesNo(val) {
   return val ? "Yes" : "No";
+}
+
+function decodeHtml(html) {
+  if (!html) return "-";
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return div.innerHTML;
 }
 
 /* ================= TOPICS ================= */
@@ -51,12 +58,12 @@ async function loadTopics() {
 
   if (!projectId) return;
 
-  const data = await apiGet(`projects/${projectId}/topics`);
+  const res = await apiGet(`projects/${projectId}/topics`);
 
-  TOPICS = Array.isArray(data)
-    ? data
-    : Array.isArray(data.topics)
-      ? data.topics
+  TOPICS = Array.isArray(res)
+    ? res
+    : Array.isArray(res.topics)
+      ? res.topics
       : [];
 
   TOPICS.forEach(t => {
@@ -70,9 +77,20 @@ async function loadTopics() {
 
 /* ================= RENDER ================= */
 
-function renderDiscussion(topic, project) {
+function renderDiscussion(topic, projectId) {
   const container = document.getElementById("discussionDetails");
   container.innerHTML = "";
+
+  if (!topic) {
+    container.innerHTML =
+      `<div class="alert alert-warning">No discussion details found.</div>`;
+    return;
+  }
+
+  const project =
+    PROJECTS.find(p => String(p.id) === String(projectId));
+
+  const projectName = project ? project.title : projectId;
 
   container.innerHTML = `
     <div class="card p-3">
@@ -80,7 +98,7 @@ function renderDiscussion(topic, project) {
 
       <div class="field-row">
         <div class="label">Project</div>
-        <div class="value">${project.title}</div>
+        <div class="value">${projectName}</div>
       </div>
 
       <div class="field-row">
@@ -90,22 +108,22 @@ function renderDiscussion(topic, project) {
 
       <div class="field-row">
         <div class="label">Description</div>
-        <div class="value">${topic.description || "-"}</div>
+        <div class="value">${decodeHtml(topic.description)}</div>
       </div>
 
       <div class="field-row">
         <div class="label">Pinned</div>
-        <div class="value">${bool(topic.pinned)}</div>
+        <div class="value">${yesNo(topic.pinned)}</div>
       </div>
 
       <div class="field-row">
         <div class="label">Private</div>
-        <div class="value">${bool(topic.private)}</div>
+        <div class="value">${yesNo(topic.private)}</div>
       </div>
 
       <div class="field-row">
         <div class="label">Archived</div>
-        <div class="value">${bool(topic.archived)}</div>
+        <div class="value">${yesNo(topic.archived)}</div>
       </div>
 
       <div class="field-row">
@@ -142,7 +160,7 @@ function renderDiscussion(topic, project) {
 
       <div class="field-row">
         <div class="label">By Me</div>
-        <div class="value">${bool(topic.by_me)}</div>
+        <div class="value">${yesNo(topic.by_me)}</div>
       </div>
 
       <div class="field-row">
@@ -159,18 +177,21 @@ async function fetchDiscussion() {
   const projectId = document.getElementById("projectSelect").value;
   const topicId = document.getElementById("topicSelect").value;
 
-  if (!projectId || !topicId)
-    return alert("Select both project and discussion");
+  if (!projectId || !topicId) {
+    alert("Select both project and discussion");
+    return;
+  }
 
   await loadPeople();
 
-  const data = await apiGet(`projects/${projectId}/topics/${topicId}`);
+  const res = await apiGet(`projects/${projectId}/topics/${topicId}`);
+
   const topic =
-    data?.topics?.[0] || data?.[0];
+    Array.isArray(res?.topics) ? res.topics[0] :
+    Array.isArray(res) ? res[0] :
+    res;
 
-  const project = PROJECTS.find(p => p.id == projectId);
-
-  renderDiscussion(topic, project);
+  renderDiscussion(topic, projectId);
 
   document.getElementById("metaInfo").innerText =
     `Projects: ${PROJECTS.length} • Topics: ${TOPICS.length}`;
