@@ -1,179 +1,94 @@
 const BASE_URL =
-  "https://script.google.com/macros/s/AKfycbxxXUBxJfmo1vRek809UjydNsrPeObQF4_SEQOYiHDUweABOvRh5kIrqN2s6pZuBQ7JKw/exec";
+  "https://script.google.com/macros/s/AKfycbzoLhRhFe9Y6ufl2DVFwh9mEWdRTelfD1EA7xSesXOWXsmYH9NoeXOJmIrJcYs3Miy9tg/exec";
 
-const PEOPLE = {};
+/* ================= API ================= */
 
-/* =======================
-   API
-======================= */
 async function apiGet(path) {
-  const url = `${BASE_URL}?path=${encodeURIComponent(path)}`;
-  const res = await fetch(url);
+  const res = await fetch(`${BASE_URL}?path=${encodeURIComponent(path)}`);
   const text = await res.text();
 
-  try {
-    return JSON.parse(text);
-  } catch {
-    console.error("Non-JSON response:", text);
+  if (!res.ok) {
     throw new Error(text);
   }
+
+  return JSON.parse(text);
 }
 
-/* =======================
-   INIT
-======================= */
-document.addEventListener("DOMContentLoaded", init);
+/* ================= PEOPLE MAP ================= */
 
-async function init() {
-  // Only preload people
-  await loadPeople();
-}
+let PEOPLE_MAP = {};
 
-/* =======================
-   PEOPLE
-======================= */
 async function loadPeople() {
-  const data = await apiGet("v3/people");
-  data.forEach(p => {
-    PEOPLE[p.id] = `${p.first_name} ${p.last_name}`.trim();
+  if (Object.keys(PEOPLE_MAP).length) return;
+
+  const people = await apiGet("people");
+
+  people.forEach(p => {
+    PEOPLE_MAP[p.id] = `${p.first_name} ${p.last_name}`.trim();
   });
 }
 
-/* =======================
-   ANNOUNCEMENTS
-======================= */
-async function loadAnnouncements() {
-  const tbody = document.getElementById("announcementTable");
-  tbody.innerHTML = `
-    <tr>
-      <td colspan="8" class="text-center text-muted py-4">
-        Loading announcements…
-      </td>
-    </tr>`;
-
-  const res = await apiGet("v4/announcements");
-
-  document.getElementById("totalCount").innerText =
-    res.total_count ?? 0;
-
-  renderAnnouncements(res.announcements || []);
+function personName(id) {
+  return PEOPLE_MAP[id] || id;
 }
 
-/* =======================
-   RENDER
-======================= */
-function renderAnnouncements(list) {
-  const tbody = document.getElementById("announcementTable");
-  tbody.innerHTML = "";
+/* ================= FETCH ================= */
 
-  if (!list.length) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="8" class="text-center text-muted py-4">
-          No announcements found
-        </td>
-      </tr>`;
+async function fetchAnnouncements() {
+  document.getElementById("list").innerHTML = "Loading…";
+
+  await loadPeople();
+
+  const data = await apiGet("announcements");
+
+  const announcements = data.announcements || [];
+
+  document.getElementById("count").innerText =
+    `Total announcements: ${data.total_count}`;
+
+  renderAnnouncements(announcements);
+}
+
+/* ================= RENDER ================= */
+
+function renderAnnouncements(items) {
+  const container = document.getElementById("list");
+  container.innerHTML = "";
+
+  if (!items.length) {
+    container.innerHTML = "<p>No announcements found</p>";
     return;
   }
 
-  list.forEach((a, index) => {
-    const rowId = `expand-${index}`;
+  items.forEach(a => {
+    const div = document.createElement("div");
+    div.className = "card";
 
-    const assignedNames =
-      (a.assigned || [])
-        .map(id => PEOPLE[id] || id)
-        .join(", ") || "—";
+    div.innerHTML = `
+      <div class="title">${a.title}</div>
 
-    const creator = PEOPLE[a.created_by] || a.created_by || "—";
+      <div class="meta">
+        Created: ${a.created_at} |
+        Updated: ${a.updated_at}
+      </div>
 
-    tbody.innerHTML += `
-      <tr>
-        <td>
-          <button class="btn btn-sm btn-outline-secondary"
-            onclick="toggleRow('${rowId}')">+</button>
-        </td>
+      <div class="meta">
+        Status: <span class="badge">${a.status}</span>
+        ${a.pinned ? '<span class="badge">Pinned</span>' : ""}
+        ${a.by_me ? '<span class="badge">By me</span>' : ""}
+      </div>
 
-        <td class="wrap fw-semibold">${a.title}</td>
+      <div class="assigned">
+        <strong>Assigned:</strong>
+        ${a.assigned.map(id => personName(id)).join(", ") || "-"}
+      </div>
 
-        <td class="wrap">${assignedNames}</td>
-
-        <td>
-          ${a.pinned
-            ? `<span class="badge bg-warning text-dark">Pinned</span>`
-            : "—"}
-        </td>
-
-        <td>
-          <span class="badge ${
-            a.status === "active" ? "bg-success" : "bg-secondary"
-          }">
-            ${a.status}
-          </span>
-        </td>
-
-        <td>${a.comments?.count ?? 0}</td>
-
-        <td>${a.created_at || "—"}</td>
-
-        <td>${creator}</td>
-      </tr>
-
-      <tr id="${rowId}" style="display:none;background:#fafafa;">
-        <td colspan="8">
-          <div class="p-3">
-
-            <div><strong>ID:</strong> ${a.id}</div>
-
-            <div><strong>Description:</strong>
-              ${stripHtml(a.description) || "—"}
-            </div>
-
-            <div><strong>Updated At:</strong> ${a.updated_at || "—"}</div>
-            <div><strong>Updated By:</strong>
-              ${PEOPLE[a.updated_by] || a.updated_by || "—"}
-            </div>
-
-            <div><strong>Valid Till:</strong>
-              ${a.valid_till?.text || "—"}
-            </div>
-
-            <div><strong>Comments Allowed:</strong>
-              ${a.comments_allowed ? "Yes" : "No"}
-            </div>
-
-            <div><strong>Hide Subscribers:</strong>
-              ${a.hide_subscribers ? "Yes" : "No"}
-            </div>
-
-            <div><strong>Deleted:</strong>
-              ${a.deleted ? "Yes" : "No"}
-            </div>
-
-            <div><strong>Seen By:</strong>
-              ${(a.seen || []).map(id => PEOPLE[id] || id).join(", ") || "—"}
-            </div>
-
-            <div><strong>Attachments:</strong>
-              ${(a.attachments || []).length}
-            </div>
-
-          </div>
-        </td>
-      </tr>
+      <div class="meta">
+        Comments: ${a.comments?.count || 0} |
+        Attachments: ${a.attachments.length}
+      </div>
     `;
+
+    container.appendChild(div);
   });
-}
-
-/* =======================
-   HELPERS
-======================= */
-function toggleRow(id) {
-  const row = document.getElementById(id);
-  row.style.display =
-    row.style.display === "none" ? "table-row" : "none";
-}
-
-function stripHtml(html) {
-  if (!html) return "";
-  return html.replace(/<[^>]*>/g, "").trim();
 }
