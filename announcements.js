@@ -1,4 +1,4 @@
-const GAS_URL =
+const BASE_URL =
   "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
 const PEOPLE = {};
@@ -7,7 +7,7 @@ const PEOPLE = {};
    API
 ======================= */
 async function apiGet(path) {
-  const url = `${GAS_URL}?path=${encodeURIComponent(path)}`;
+  const url = `${BASE_URL}?path=${encodeURIComponent(path)}`;
   const res = await fetch(url);
   const text = await res.text();
 
