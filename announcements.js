@@ -25,8 +25,8 @@ async function apiGet(path) {
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  // Only preload people
   await loadPeople();
-  await loadAnnouncements();
 }
 
 /* =======================
@@ -43,6 +43,14 @@ async function loadPeople() {
    ANNOUNCEMENTS
 ======================= */
 async function loadAnnouncements() {
+  const tbody = document.getElementById("announcementTable");
+  tbody.innerHTML = `
+    <tr>
+      <td colspan="8" class="text-center text-muted py-4">
+        Loading announcements…
+      </td>
+    </tr>`;
+
   const res = await apiGet("v4/announcements");
 
   document.getElementById("totalCount").innerText =
