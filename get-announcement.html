@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Announcement Details</title>
+
+  <style>
+    body {
+      font-family: Inter, system-ui, -apple-system;
+      background: #f8fafc;
+      padding: 20px;
+    }
+
+    .header {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+
+    select {
+      padding: 8px 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      min-width: 320px;
+    }
+
+    button {
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1e40af;
+    }
+
+    .card {
+      background: #ffffff;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+    }
+
+    .title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+
+    .meta {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #eef2ff;
+      color: #3730a3;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      margin-right: 6px;
+    }
+
+    .section {
+      margin-top: 14px;
+      font-size: 14px;
+    }
+
+    .label {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .description {
+      background: #f9fafb;
+      padding: 14px;
+      border-radius: 8px;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h2>Announcement Details</h2>
+
+  <div class="header">
+    <select id="announcementSelect">
+      <option value="">Loading announcements…</option>
+    </select>
+
+    <button onclick="getSelectedAnnouncement()">Get Details</button>
+  </div>
+
+  <div id="output"></div>
+
+  <script src="get-announcement.js"></script>
+</body>
+</html>
