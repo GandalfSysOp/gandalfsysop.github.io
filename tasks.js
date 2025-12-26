@@ -1,21 +1,25 @@
 const GAS_URL =
   "https://script.google.com/macros/s/AKfycbw4ek_vcqZEHEOuwlEGXneYDtVKv8MyhyuJ6nZ3y8N0-3E8JwpDiqTV8hoNffrhzwtR/exec";
 
-/* ---------- API ---------- */
+/* ---------- SAFE API ---------- */
 async function apiGet(path) {
   if (!path) throw new Error("Missing API path");
 
   const url = `${GAS_URL}?path=${encodeURIComponent(path)}`;
   const res = await fetch(url);
-  return res.json();
+
+  const text = await res.text();
+
+  try {
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("Non-JSON response from GAS:", text);
+    throw new Error(text);
+  }
 }
 
 /* ---------- INIT ---------- */
-document.addEventListener("DOMContentLoaded", init);
-
-async function init() {
-  await loadProjects();
-}
+document.addEventListener("DOMContentLoaded", loadProjects);
 
 /* ---------- PROJECTS ---------- */
 async function loadProjects() {
@@ -27,45 +31,32 @@ async function loadProjects() {
   projects.forEach(p => {
     select.innerHTML += `<option value="${p.id}">${p.title}</option>`;
   });
-
-  select.addEventListener("change", loadTasklists);
-}
-
-/* ---------- TASKLISTS ---------- */
-async function loadTasklists() {
-  const projectId = projectSelect.value;
-  const select = document.getElementById("tasklistSelect");
-
-  select.innerHTML = `<option value="">Select tasklist</option>`;
-  document.getElementById("taskTable").innerHTML = "";
-
-  if (!projectId) return;
-
-  const res = await apiGet(`projects/${projectId}/todolists`);
-  const lists = res.todolists || [];
-
-  lists.forEach(l => {
-    select.innerHTML += `<option value="${l.id}">${l.title}</option>`;
-  });
 }
 
 /* ---------- TASKS ---------- */
 async function fetchTasks() {
-  const projectId = projectSelect.value;
-  const listId = tasklistSelect.value;
+  const projectId = document.getElementById("projectSelect").value;
+  const tasklistId = document.getElementById("tasklistId").value.trim();
 
-  if (!projectId || !listId) {
-    alert("Select project and tasklist");
+  if (!projectId || !tasklistId) {
+    alert("Please select a project and enter a tasklist ID");
     return;
   }
 
-  const path = `projects/${projectId}/todolists/${listId}/tasks`;
-  const data = await apiGet(path);
+  const path = `projects/${projectId}/todolists/${tasklistId}/tasks`;
 
-  console.log("NETWORK DATA", data);
+  let response;
+  try {
+    response = await apiGet(path);
+  } catch (err) {
+    alert(err.message);
+    return;
+  }
 
-  // 🔥 CRITICAL FIX: this endpoint returns ARRAY
-  const tasks = Array.isArray(data) ? data : [];
+  console.log("NETWORK DATA", response);
+
+  // 🔥 This endpoint returns ARRAY
+  const tasks = Array.isArray(response) ? response : [];
 
   renderTasks(tasks);
 }
@@ -77,9 +68,11 @@ function renderTasks(tasks) {
 
   if (!tasks.length) {
     tbody.innerHTML = `
-      <tr><td colspan="8" class="text-center text-muted">
-        No tasks found
-      </td></tr>`;
+      <tr>
+        <td colspan="8" class="text-center text-muted">
+          No tasks found
+        </td>
+      </tr>`;
     return;
   }
 
