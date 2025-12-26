@@ -1,5 +1,5 @@
 const BASE_URL =
-  "https://script.google.com/macros/s/AKfycbxxXUBxJfmo1vRek809UjydNsrPeObQF4_SEQOYiHDUweABOvRh5kIrqN2s6pZuBQ7JKw/exec";
+  "https://script.google.com/macros/s/AKfycbzoLhRhFe9Y6ufl2DVFwh9mEWdRTelfD1EA7xSesXOWXsmYH9NoeXOJmIrJcYs3Miy9tg/exec";
 
 /* ================= LOOKUP CACHES ================= */
 
