@@ -1,101 +1,135 @@
 const GAS_URL =
   "https://script.google.com/macros/s/AKfycbw4ek_vcqZEHEOuwlEGXneYDtVKv8MyhyuJ6nZ3y8N0-3E8JwpDiqTV8hoNffrhzwtR/exec";
 
-/* ---------------- SAFE API ---------------- */
-async function apiGet(path) {
-  if (!path) throw new Error("Missing API path");
+const PEOPLE = {};
+const LABELS = {};
 
-  // IMPORTANT: path MUST include v3/
+/* ---------- API ---------- */
+async function apiGet(path) {
   const url = `${GAS_URL}?path=${encodeURIComponent(path)}`;
   const res = await fetch(url);
-
   const text = await res.text();
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    console.error("GAS returned non-JSON:", text);
-    throw new Error(text);
-  }
+  return JSON.parse(text);
 }
 
-/* ---------------- INIT ---------------- */
-document.addEventListener("DOMContentLoaded", loadProjects);
+/* ---------- INIT ---------- */
+document.addEventListener("DOMContentLoaded", init);
 
-/* ---------------- PROJECTS ---------------- */
+async function init() {
+  await loadPeople();
+  await loadLabels();
+  await loadProjects();
+}
+
+/* ---------- LOOKUPS ---------- */
+async function loadPeople() {
+  const data = await apiGet("v3/people");
+  data.forEach(p => {
+    PEOPLE[p.id] = `${p.first_name} ${p.last_name}`.trim();
+  });
+}
+
+async function loadLabels() {
+  const data = await apiGet("v3/labels");
+  data.forEach(l => {
+    LABELS[l.id] = l.name;
+  });
+}
+
 async function loadProjects() {
+  const projects = await apiGet("v3/projects");
   const select = document.getElementById("projectSelect");
-  select.innerHTML = `<option value="">Loading…</option>`;
-
-  try {
-    const projects = await apiGet("v3/projects");
-
-    select.innerHTML = `<option value="">Select project</option>`;
-    projects.forEach(p => {
-      select.innerHTML += `<option value="${p.id}">${p.title}</option>`;
-    });
-
-  } catch (err) {
-    select.innerHTML = `<option value="">Failed to load projects</option>`;
-    alert(err.message);
-  }
+  select.innerHTML = `<option value="">Select project</option>`;
+  projects.forEach(p => {
+    select.innerHTML += `<option value="${p.id}">${p.title}</option>`;
+  });
 }
 
-/* ---------------- TASKS ---------------- */
+/* ---------- TASKS ---------- */
 async function fetchTasks() {
-  const projectId = document.getElementById("projectSelect").value;
-  const tasklistId = document.getElementById("tasklistId").value.trim();
+  const projectId = projectSelect.value;
+  const tasklistId = tasklistIdInput.value.trim();
 
   if (!projectId || !tasklistId) {
-    alert("Please select a project and enter a tasklist ID");
+    alert("Select project and enter tasklist ID");
     return;
   }
 
-  const path = `v3/projects/${projectId}/todolists/${tasklistId}/tasks`;
+  const tasks = await apiGet(
+    `v3/projects/${projectId}/todolists/${tasklistId}/tasks`
+  );
 
-  let response;
-  try {
-    response = await apiGet(path);
-  } catch (err) {
-    alert(err.message);
-    return;
-  }
-
-  console.log("NETWORK RESPONSE:", response);
-
-  // This endpoint returns a RAW ARRAY
-  const tasks = Array.isArray(response) ? response : [];
-
+  document.getElementById("taskCount").innerText = tasks.length;
   renderTasks(tasks);
 }
 
-/* ---------------- RENDER ---------------- */
+/* ---------- RENDER ---------- */
 function renderTasks(tasks) {
   const tbody = document.getElementById("taskTable");
   tbody.innerHTML = "";
-
-  if (!tasks.length) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="8" class="text-center muted">
-          No tasks found
-        </td>
-      </tr>`;
-    return;
-  }
 
   tasks.forEach(t => {
     tbody.innerHTML += `
       <tr>
         <td>${t.ticket || "—"}</td>
-        <td>${t.title || "—"}</td>
-        <td>${t.project_name || "—"}</td>
-        <td>${t.list_name || "—"}</td>
-        <td>${t.workflow_name || "—"}</td>
-        <td>${t.stage_name || "—"}</td>
-        <td>${(t.assigned || []).join(", ") || "—"}</td>
+
+        <td class="wrap"><strong>${t.title}</strong></td>
+
+        <td class="wrap">${stripHtml(t.description)}</td>
+
+        <td>${(t.assigned || []).map(id => PEOPLE[id] || id).join(", ") || "—"}</td>
+
+        <td>${t.start_date || "—"}</td>
+        <td>${t.due_date || "—"}</td>
+
+        <td>${t.percent_progress ?? 0}%</td>
         <td>${t.completed ? "Yes" : "No"}</td>
+        <td>${t.task_archived ? "Yes" : "No"}</td>
+
+        <td>${formatEst(t)}</td>
+        <td>${formatLogged(t)}</td>
+
+        <td>${(t.attachments || []).length}</td>
+        <td>${t.comments ?? 0}</td>
+
+        <td>${(t.labels || []).map(id => LABELS[id] || id).join(", ") || "—"}</td>
+
+        <td>${formatCustom(t.custom_fields)}</td>
+
+        <td>${PEOPLE[t.creator?.id] || t.creator?.id || "—"}</td>
+        <td>${t.created_at || "—"}</td>
+        <td>${t.updated_at || "—"}</td>
+        <td>${PEOPLE[t.updated_by] || t.updated_by || "—"}</td>
+
+        <td>${t.parent_id || "—"}</td>
+        <td>${t.sub_tasks ?? 0}</td>
       </tr>
     `;
   });
+}
+
+/* ---------- HELPERS ---------- */
+function stripHtml(html) {
+  if (!html) return "—";
+  return html.replace(/<[^>]*>/g, "").trim();
+}
+
+function formatEst(t) {
+  return [
+    t.estimated_hours,
+    t.estimated_hrs,
+    t.estimated_mins
+  ].filter(v => v !== null && v !== undefined).join(" / ") || "—";
+}
+
+function formatLogged(t) {
+  return [
+    t.logged_hours,
+    t.logged_mins
+  ].filter(v => v !== null && v !== undefined).join(" / ") || "—";
+}
+
+function formatCustom(fields) {
+  if (!Array.isArray(fields) || !fields.length) return "—";
+  return fields.map(f => f.title).join(", ");
 }
