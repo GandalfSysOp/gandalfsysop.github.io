@@ -5,15 +5,21 @@ let PEOPLE = {};
 
 /* ================= HELPERS ================= */
 
-function unwrap(res) {
-  if (!res) return [];
-  if (Array.isArray(res)) return res;
-  if (Array.isArray(res.todolists)) return res.todolists;
+function safeJsonParse(val) {
+  if (Array.isArray(val)) return val;
+  if (typeof val === "string") {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
   return [];
 }
 
 async function apiGet(path) {
-  const url = `${BASE_URL}?path=${encodeURIComponent(path)}`;
+  const url = `${GAS_URL}?path=${encodeURIComponent(path)}`;
   const res = await fetch(url);
   return res.json();
 }
@@ -39,7 +45,7 @@ async function fetchTasklists() {
   }
 
   const res = await apiGet(`v3/projects/${projectId}/todolists`);
-  const lists = unwrap(res);
+  const lists = Array.isArray(res) ? res : res.todolists || [];
 
   renderTasklists(lists);
 }
@@ -51,7 +57,11 @@ function renderTasklists(lists) {
   tbody.innerHTML = "";
 
   if (!lists.length) {
-    tbody.innerHTML = `<tr><td colspan="18" class="text-center">No tasklists found</td></tr>`;
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="17" class="text-center muted">No tasklists found</td>
+      </tr>
+    `;
     return;
   }
 
@@ -60,19 +70,16 @@ function renderTasklists(lists) {
       list.assigned?.map(id => PEOPLE[id] || id).join(", ") || "—";
 
     const workflow =
-      list.workflow?.name || (list.workflow?.id ? `ID: ${list.workflow.id}` : "—");
+      list.workflow_name ||
+      list.workflow?.name ||
+      (list.workflow ? `ID: ${list.workflow}` : "—");
 
-    const milestone =
-      list.milestone?.id ? list.milestone.id : "—";
+    const customFieldsArr = safeJsonParse(list.custom_fields);
 
-    const creator =
-      PEOPLE[list.creator?.id] || list.creator?.id || "—";
-
-    const customFields = list.custom_fields?.length
-      ? list.custom_fields
-          .map(cf => `${cf.title} (${cf.type})`)
-          .join(", ")
-      : "—";
+    const customFields =
+      customFieldsArr.length
+        ? customFieldsArr.map(cf => cf.title).join(", ")
+        : "—";
 
     tbody.innerHTML += `
       <tr>
@@ -80,14 +87,14 @@ function renderTasklists(lists) {
         <td>${list.title}</td>
         <td>${list.private ? "Yes" : "No"}</td>
         <td>${list.archived ? "Yes" : "No"}</td>
-        <td>${list.completed_count}</td>
-        <td>${list.remaining_count}</td>
-        <td>${list.time_tracking ? "Yes" : "No"}</td>
-        <td>${list.show_in_gantt ? "Yes" : "No"}</td>
-        <td>${assigned}</td>
+        <td>${list.completed_count ?? "—"}</td>
+        <td>${list.remaining_count ?? "—"}</td>
         <td>${workflow}</td>
-        <td>${milestone}</td>
-        <td>${creator}</td>
+        <td>${assigned}</td>
+        <td>${list.show_in_gantt ? "Yes" : "No"}</td>
+        <td>${list.show_in_kanban ? "Yes" : "No"}</td>
+        <td>${list.time_tracking ? "Yes" : "No"}</td>
+        <td>${list.by_me ? "Yes" : "No"}</td>
         <td>${list.reply_email || "—"}</td>
         <td>
           ${
@@ -96,10 +103,9 @@ function renderTasklists(lists) {
               : "—"
           }
         </td>
-        <td>${list.by_me ? "Yes" : "No"}</td>
-        <td>${list.created_at}</td>
-        <td>${list.updated_at}</td>
         <td>${customFields}</td>
+        <td>${list.created_at || "—"}</td>
+        <td>${list.updated_at || "—"}</td>
       </tr>
     `;
   });
