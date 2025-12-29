@@ -1,6 +1,12 @@
 const BASE_URL =
   "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
+/* ================= GLOBAL LOOKUPS ================= */
+
+const peopleMap = {};
+const projectMap = {};
+const folderMap = {};
+
 /* ================= API ================= */
 
 async function apiGet(path) {
@@ -14,14 +20,40 @@ async function apiGet(path) {
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  await preloadLookups();
+  await loadProjects();
+}
+
+/* ================= PRELOAD ================= */
+
+async function preloadLookups() {
+  const [people, projects] = await Promise.all([
+    apiGet("people"),
+    apiGet("projects")
+  ]);
+
+  people.forEach(p => {
+    peopleMap[p.id] = p.name || p.email || `User ${p.id}`;
+  });
+
+  projects.forEach(p => {
+    projectMap[p.id] = p.title || `Project ${p.id}`;
+  });
+}
+
+/* ================= PROJECTS ================= */
+
+async function loadProjects() {
   const projects = await apiGet("projects");
-  const projectSelect = document.getElementById("projectSelect");
+  const select = document.getElementById("projectSelect");
 
-  projectSelect.innerHTML =
+  select.innerHTML =
     `<option value="">Select project</option>` +
-    projects.map(p => `<option value="${p.id}">${p.title}</option>`).join("");
+    projects.map(p =>
+      `<option value="${p.id}">${p.title}</option>`
+    ).join("");
 
-  projectSelect.addEventListener("change", loadFolders);
+  select.addEventListener("change", loadFolders);
 }
 
 /* ================= FOLDERS ================= */
@@ -49,7 +81,10 @@ async function loadFolders() {
 
 function flattenFolders(node, list) {
   if (!node) return;
+
+  folderMap[node.id] = node.name;
   list.push({ id: node.id, name: node.name, level: node.level });
+
   if (Array.isArray(node.children)) {
     node.children.forEach(c => flattenFolders(c, list));
   }
@@ -90,7 +125,6 @@ function renderFiles(files) {
   files.forEach(file => {
     const rowId = `file-${file.id}`;
 
-    /* Main Row */
     body.insertAdjacentHTML("beforeend", `
       <tr>
         <td style="width:28px" onclick="toggle('${rowId}')">
@@ -104,19 +138,21 @@ function renderFiles(files) {
       </tr>
     `);
 
-    /* Expanded Row */
     body.insertAdjacentHTML("beforeend", `
       <tr id="${rowId}" style="display:none;background:#f8fafc">
         <td colspan="6">
           <div class="row g-2">
 
-            ${detail("Approved By", file.approved_by)}
+            ${detail("Approved By", nameOrId(file.approved_by))}
             ${detail("Approved Count", file.approved_count)}
             ${detail("Approved By Me", file.approved_by_me)}
             ${detail("By Me", file.by_me)}
 
-            ${detail("Creator ID", file.creator?.id)}
-            ${detail("Updated By", file.updated_by)}
+            ${detail("Creator", nameOrId(file.creator?.id))}
+            ${detail("Updated By", nameOrId(file.updated_by))}
+
+            ${detail("Project", projectName(file.project?.id))}
+            ${detail("Folder", folderName(file.folder?.id))}
 
             ${detail("Current Version", file.current_version)}
             ${detail("Proof Count", file.proof_count)}
@@ -127,9 +163,7 @@ function renderFiles(files) {
             ${detail("Connected ID", file.connected_id)}
             ${detail("Source", file.source)}
 
-            ${detail("Notify Users", join(file.notify))}
-            ${detail("Project ID", file.project?.id)}
-            ${detail("Folder ID", file.folder?.id)}
+            ${detail("Notify Users", notifyNames(file.notify))}
 
             ${link("View", file.url?.view)}
             ${link("Download", file.url?.download)}
@@ -152,7 +186,29 @@ function toggle(id) {
   row.style.display = row.style.display === "none" ? "table-row" : "none";
 }
 
-/* ================= HELPERS ================= */
+/* ================= NAME HELPERS ================= */
+
+function nameOrId(id) {
+  if (!id) return "-";
+  return `${peopleMap[id] || "Unknown"} (${id})`;
+}
+
+function projectName(id) {
+  if (!id) return "-";
+  return `${projectMap[id] || "Unknown Project"} (${id})`;
+}
+
+function folderName(id) {
+  if (!id) return "-";
+  return `${folderMap[id] || "Unknown Folder"} (${id})`;
+}
+
+function notifyNames(arr) {
+  if (!Array.isArray(arr)) return "-";
+  return arr.map(id => peopleMap[id] || id).join(", ");
+}
+
+/* ================= UI HELPERS ================= */
 
 function detail(label, value) {
   return `
@@ -169,10 +225,6 @@ function link(label, url) {
       <div class="text-muted small">${label}</div>
       <a href="${url}" target="_blank">${label}</a>
     </div>`;
-}
-
-function join(arr) {
-  return Array.isArray(arr) ? arr.join(", ") : "-";
 }
 
 function formatDate(val) {
