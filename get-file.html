@@ -24,7 +24,10 @@
       font-weight: 600;
     }
 
-    .container { max-width: 1200px; padding: 20px; }
+    .container {
+      max-width: 1200px;
+      padding: 20px;
+    }
 
     .card {
       border-radius: 14px;
@@ -32,27 +35,42 @@
       margin-bottom: 16px;
     }
 
+    .field-row {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 12px;
+      padding: 6px 0;
+      border-bottom: 1px dashed #e5e7eb;
+    }
+
+    .field-row:last-child {
+      border-bottom: none;
+    }
+
     .label {
       font-size: 11px;
-      text-transform: uppercase;
       color: #64748b;
+      text-transform: uppercase;
     }
 
-    .value { font-size: 13px; }
+    .value {
+      font-size: 13px;
+      word-break: break-word;
+    }
 
-    .expand {
+    .toggle {
       cursor: pointer;
       color: #4f46e5;
-      font-size: 14px;
+      font-size: 13px;
+      font-weight: 600;
     }
 
-    .hidden { display: none; }
+    .hidden {
+      display: none;
+    }
 
-    .footer {
-      text-align: center;
-      font-size: 11px;
-      padding: 12px 0;
-      color: #64748b;
+    a {
+      word-break: break-all;
     }
   </style>
 </head>
@@ -68,28 +86,22 @@
   <!-- Controls -->
   <div class="card p-3">
     <div class="row g-2 align-items-end">
-      <div class="col-md-3">
-        <label class="label">Project</label>
+      <div class="col-md-4">
+        <label class="form-label">Project</label>
         <select id="projectSelect" class="form-select form-select-sm"></select>
       </div>
 
-      <div class="col-md-3">
-        <label class="label">Folder</label>
+      <div class="col-md-4">
+        <label class="form-label">Folder</label>
         <select id="folderSelect" class="form-select form-select-sm"></select>
       </div>
 
       <div class="col-md-4">
-        <label class="label">Search File</label>
-        <input
-          type="text"
-          id="fileSearch"
-          class="form-control form-control-sm"
-          placeholder="Type to search file..."
-        />
-        <select id="fileSelect" class="form-select form-select-sm mt-1"></select>
+        <label class="form-label">File</label>
+        <select id="fileSelect" class="form-select form-select-sm"></select>
       </div>
 
-      <div class="col-md-2">
+      <div class="col-md-2 mt-2">
         <button class="btn btn-primary btn-sm w-100" onclick="fetchFileDetails()">
           Get Details
         </button>
@@ -97,12 +109,10 @@
     </div>
   </div>
 
-  <!-- Result -->
-  <div id="fileDetails"></div>
+  <!-- Output -->
+  <div id="fileDetails" class="card p-3"></div>
 
 </div>
-
-<div class="footer">© 2025 ProofHub API Dashboard</div>
 
 <script src="get-file.js"></script>
 </body>
