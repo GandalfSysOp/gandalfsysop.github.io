@@ -106,25 +106,49 @@ async function fetchFileDetails() {
   const file = Array.isArray(data) ? data[0] : data;
 
   const rows = {
-    "File Name": file.name,
-    "File Type": file.file_type,
-    "Size (KB)": file.byte_size ? (file.byte_size / 1024).toFixed(2) : "-",
-    "Source": file.source,
-    "Created At": safeDate(file.created_at),
-    "Updated At": safeDate(file.updated_at),
-    "Creator": nameFromPeople(file.creator?.id),
-    "Updated By": nameFromPeople(file.updated_by),
-    "Approved By": namesFromPeople(file.approved_by),
-    "Notify": namesFromPeople(file.notify),
-    "Project": projectMap[file.project?.id],
-    "Folder": folderMap[file.folder?.id],
-    "Proof Count": file.proof_count,
-    "Proof Version": file.proof_version,
-    "Current Version": file.current_version ? "Yes" : "No",
-    "Download": `<a href="${file.url?.download}" target="_blank">Download</a>`,
-    "View": `<a href="${file.url?.view}" target="_blank">View</a>`,
-    "Share": `<a href="${file.url?.share}" target="_blank">Share</a>`
-  };
+  "File Name": file.name,
+  "File Type": file.file_type,
+  "Size (KB)": file.byte_size ? (file.byte_size / 1024).toFixed(2) : "-",
+  "Source": file.source,
+
+  "Created At": safeDate(file.created_at),
+  "Updated At": safeDate(file.updated_at),
+
+  "Creator": nameFromPeople(file.creator?.id),
+  "Updated By": nameFromPeople(file.updated_by),
+
+  "Approved By": namesFromPeople(file.approved_by),
+  "Approved By Me": file.approved_by_me ? "Yes" : "No",
+  "By Me": file.by_me ? "Yes" : "No",
+
+  "Notify": namesFromPeople(file.notify),
+
+  "Project": projectMap[file.project?.id],
+  "Folder": folderMap[file.folder?.id],
+
+  "Proof Count": file.proof_count,
+  "Proof Version": file.proof_version,
+
+  "Version Count": file.version?.count ?? file.version_count ?? "-",
+  "Is Current Version": file.version?.current ? "Yes" : "No",
+  "Main Version ID": file.version_main ?? "-",
+
+  "Download": file.url?.download
+    ? `<a href="${file.url.download}" target="_blank">Download</a>`
+    : "-",
+
+  "View": file.url?.view
+    ? `<a href="${file.url.view}" target="_blank">View</a>`
+    : "-",
+
+  "Proofing": file.url?.proofing
+    ? `<a href="${file.url.proofing}" target="_blank">Open Proofing</a>`
+    : "-",
+
+  "Share": file.url?.share
+    ? `<a href="${file.url.share}" target="_blank">Share Link</a>`
+    : "-"
+};
 
   fileDetails.innerHTML = "";
   Object.entries(rows).forEach(([k, v]) => {
