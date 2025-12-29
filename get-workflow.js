@@ -28,19 +28,33 @@ async function fetchFolders() {
   const projectId = document.getElementById("projectSelect").value;
   if (!projectId) return;
 
-  // IMPORTANT: response is an OBJECT, not array
-  const rootFolder = await apiGet(`projects/${projectId}/folders`);
+  const root = await apiGet(`projects/${projectId}/folders`);
 
-  // Flatten folders: root + children
-  const folders = [
-    rootFolder,
-    ...(Array.isArray(rootFolder.children) ? rootFolder.children : [])
-  ];
+  // 🔥 FLATTEN THE TREE
+  const folders = [];
+  flattenFolders(root, folders);
 
   document.getElementById("countText").textContent =
     `Total Folders: ${folders.length}`;
 
   renderFolders(folders);
+}
+
+/* ================= TREE FLATTENER ================= */
+
+function flattenFolders(node, list, parentId = null) {
+  if (!node) return;
+
+  list.push({
+    ...node,
+    parent_id: parentId
+  });
+
+  if (Array.isArray(node.children)) {
+    node.children.forEach(child =>
+      flattenFolders(child, list, node.id)
+    );
+  }
 }
 
 /* ================= RENDER ================= */
@@ -49,10 +63,10 @@ function renderFolders(folders) {
   const body = document.getElementById("foldersBody");
   body.innerHTML = "";
 
-  if (!folders || !folders.length) {
+  if (!folders.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-muted">
+        <td colspan="7" class="text-center text-muted">
           No folders found
         </td>
       </tr>`;
@@ -67,16 +81,17 @@ function renderFolders(folders) {
         <td class="expand" onclick="toggle('${rowId}')">
           <i class="bi bi-chevron-right"></i>
         </td>
-        <td>${folder.name || "-"}</td>
+        <td>${"&nbsp;".repeat((folder.level - 1) * 4)}${folder.name}</td>
         <td>${folder.id}</td>
         <td>${folder.parent_id ?? "-"}</td>
+        <td>${folder.level}</td>
         <td>${formatDate(folder.created_at)}</td>
         <td>${formatDate(folder.updated_at)}</td>
       </tr>
 
-      <tr id="${rowId}" class="expanded-row d-none">
-        <td colspan="6">
-          <pre>${JSON.stringify(folder, null, 2)}</pre>
+      <tr id="${rowId}" class="d-none">
+        <td colspan="7">
+          <pre class="mb-0">${JSON.stringify(folder, null, 2)}</pre>
         </td>
       </tr>
     `);
