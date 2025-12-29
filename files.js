@@ -1,7 +1,7 @@
 const BASE_URL =
   "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
-/* ================= API ================= */
+/* ============ API ============ */
 
 async function apiGet(path) {
   const res = await fetch(`${BASE_URL}?path=${encodeURIComponent(path)}`);
@@ -9,7 +9,7 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ================= INIT ================= */
+/* ============ INIT ============ */
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -18,27 +18,51 @@ async function init() {
   const select = document.getElementById("projectSelect");
 
   select.innerHTML = projects
-    .map(p => `<option value="${p.id}">${p.title} (${p.id})</option>`)
+    .map(p => `<option value="${p.id}">${p.title}</option>`)
     .join("");
 }
 
-/* ================= FETCH ================= */
+/* ============ FETCH ============ */
 
 async function fetchFolders() {
   const projectId = document.getElementById("projectSelect").value;
   if (!projectId) return;
 
-  const folders = await apiGet(`projects/${projectId}/folders`);
+  const root = await apiGet(`projects/${projectId}/folders`);
+
+  const flat = [];
+  flatten(root, flat);
 
   document.getElementById("countText").textContent =
-    `Total Folders: ${folders.length}`;
+    `Total Folders: ${flat.length}`;
 
-  renderFolders(folders);
+  render(flat);
 }
 
-/* ================= RENDER ================= */
+/* ============ FLATTEN TREE ============ */
 
-function renderFolders(folders) {
+function flatten(node, list, parentId = "-") {
+  if (!node) return;
+
+  list.push({
+    id: node.id,
+    name: node.name,
+    level: node.level,
+    parent_id: parentId,
+    created_at: node.created_at,
+    updated_at: node.updated_at
+  });
+
+  if (Array.isArray(node.children)) {
+    node.children.forEach(child =>
+      flatten(child, list, node.id)
+    );
+  }
+}
+
+/* ============ RENDER ============ */
+
+function render(folders) {
   const body = document.getElementById("foldersBody");
   body.innerHTML = "";
 
@@ -53,37 +77,22 @@ function renderFolders(folders) {
   }
 
   folders.forEach(f => {
-    const rowId = `folder-${f.id}`;
-
     body.insertAdjacentHTML("beforeend", `
       <tr>
-        <td class="expand" onclick="toggle('${rowId}')">
-          <i class="bi bi-chevron-right"></i>
+        <td class="folder-name level-${f.level}">
+          <i class="bi bi-folder me-1"></i>${f.name}
         </td>
-        <td>${f.name || "-"}</td>
         <td>${f.id}</td>
-        <td>${f.parent_id || "-"}</td>
+        <td>${f.level}</td>
+        <td>${f.parent_id}</td>
         <td>${formatDate(f.created_at)}</td>
         <td>${formatDate(f.updated_at)}</td>
-      </tr>
-
-      <tr id="${rowId}" class="expanded-row d-none">
-        <td colspan="6">
-          <pre>${JSON.stringify(f, null, 2)}</pre>
-        </td>
       </tr>
     `);
   });
 }
 
-/* ================= TOGGLE ================= */
-
-function toggle(id) {
-  const row = document.getElementById(id);
-  row.classList.toggle("d-none");
-}
-
-/* ================= UTIL ================= */
+/* ============ UTIL ============ */
 
 function formatDate(val) {
   if (!val) return "-";
