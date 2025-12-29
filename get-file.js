@@ -26,6 +26,14 @@ let FILES = [];
 
 document.addEventListener("DOMContentLoaded", async () => {
   await loadProjects();
+
+  document
+    .getElementById("projectSelect")
+    .addEventListener("change", loadFolders);
+
+  document
+    .getElementById("folderSelect")
+    .addEventListener("change", loadFiles);
 });
 
 /* ================= LOAD PROJECTS ================= */
