@@ -1,59 +1,19 @@
-/* ===============================
-   CONFIG
-================================ */
-const API_BASE = "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
+const API_BASE =
+  "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
-/* ===============================
-   GLOBAL CACHES
-================================ */
+// -------------------- SAFE API CALL --------------------
+async function apiGet(path) {
+  const url = `${API_BASE}?path=${encodeURIComponent(path)}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("API failed");
+  return res.json();
+}
+
+// -------------------- LOOKUPS --------------------
 const peopleMap = {};
 const projectMap = {};
 const folderMap = {};
 
-/* ===============================
-   UTILITIES
-================================ */
-function safeDate(val) {
-  return val ? new Date(val).toLocaleString() : "-";
-}
-
-function safeSize(bytes) {
-  return typeof bytes === "number"
-    ? `${(bytes / 1024).toFixed(1)} KB`
-    : "-";
-}
-
-function toggle(id) {
-  document.getElementById(id).classList.toggle("d-none");
-}
-
-/* ===============================
-   NAME RESOLVERS
-================================ */
-function personName(id) {
-  return id && peopleMap[id] ? peopleMap[id] : id ?? "-";
-}
-
-function projectName(id) {
-  return id && projectMap[id] ? projectMap[id] : id ?? "-";
-}
-
-function folderName(id) {
-  return id && folderMap[id] ? folderMap[id] : id ?? "-";
-}
-
-/* ===============================
-   API FETCH
-================================ */
-async function apiGet(path) {
-  const res = await fetch(`${API_BASE}/${path}`);
-  if (!res.ok) throw new Error("API Error");
-  return res.json();
-}
-
-/* ===============================
-   PRELOAD DATA
-================================ */
 async function preloadLookups() {
   const [people, projects] = await Promise.all([
     apiGet("people"),
@@ -61,7 +21,7 @@ async function preloadLookups() {
   ]);
 
   people.forEach(p => {
-    peopleMap[p.id] = p.name;
+    peopleMap[p.id] = `${p.first_name || ""} ${p.last_name || ""}`.trim();
   });
 
   projects.forEach(p => {
@@ -69,9 +29,7 @@ async function preloadLookups() {
   });
 }
 
-/* ===============================
-   LOAD PROJECTS
-================================ */
+// -------------------- LOAD PROJECTS --------------------
 async function loadProjects() {
   await preloadLookups();
 
@@ -82,139 +40,82 @@ async function loadProjects() {
   projects.forEach(p => {
     select.innerHTML += `<option value="${p.id}">${p.title}</option>`;
   });
+
+  select.onchange = loadFolders;
 }
 
-/* ===============================
-   LOAD FOLDERS
-================================ */
-async function loadFolders(projectId) {
+// -------------------- LOAD FOLDERS --------------------
+async function loadFolders() {
+  const projectId = projectSelect.value;
+  if (!projectId) return;
+
   const data = await apiGet(`projects/${projectId}/folders`);
+  folderSelect.innerHTML = `<option value="">Select Folder</option>`;
 
-  folderMap[data.id] = data.name;
+  function walk(folder) {
+    folderMap[folder.id] = folder.name;
+    folderSelect.innerHTML += `<option value="${folder.id}">${folder.name}</option>`;
+    folder.children?.forEach(walk);
+  }
 
-  const folders = data.children || [];
-  const select = document.getElementById("folderSelect");
+  walk(data);
+  folderSelect.onchange = loadFiles;
+}
 
-  select.innerHTML = `<option value="">Select Folder</option>`;
-  folders.forEach(f => {
-    folderMap[f.id] = f.name;
-    select.innerHTML += `<option value="${f.id}">${f.name}</option>`;
+// -------------------- LOAD FILES --------------------
+async function loadFiles() {
+  const projectId = projectSelect.value;
+  const folderId = folderSelect.value;
+  if (!folderId) return;
+
+  const files = await apiGet(`projects/${projectId}/folders/${folderId}/files`);
+  fileSelect.innerHTML = `<option value="">Select File</option>`;
+
+  files.forEach(f => {
+    fileSelect.innerHTML += `<option value="${f.id}">${f.name}</option>`;
   });
 }
 
-/* ===============================
-   NORMALIZE FILE
-================================ */
-function normalizeFile(raw) {
-  return {
-    id: raw.id,
-    name: raw.name || "-",
-    type: raw.file_type || "-",
-    size: safeSize(raw.byte_size),
-
-    created_at: safeDate(raw.created_at),
-    updated_at: safeDate(raw.updated_at),
-
-    creator: raw.creator?.id ?? null,
-    updated_by: raw.updated_by ?? null,
-
-    project: raw.project?.id ?? null,
-    folder: raw.folder?.id ?? null,
-
-    by_me: raw.by_me ?? false,
-    source: raw.source || "-",
-
-    notify: Array.isArray(raw.notify) ? raw.notify : [],
-
-    connected_id: raw.connected?.id ?? "-",
-    connected_with: raw.connected?.with ?? "-",
-
-    version_count: raw.version?.count ?? "-",
-    current_version: raw.version?.current ?? "-",
-
-    urls: {
-      download: raw.url?.download || null,
-      view: raw.url?.view || null,
-      share: raw.url?.share || null,
-      proofing: raw.url?.proofing || null
-    }
-  };
-}
-
-/* ===============================
-   FETCH FILE DETAILS
-================================ */
+// -------------------- FILE DETAILS --------------------
 async function fetchFileDetails() {
-  const pid = projectSelect.value;
-  const fid = folderSelect.value;
+  const projectId = projectSelect.value;
+  const folderId = folderSelect.value;
   const fileId = fileSelect.value;
+  if (!fileId) return;
 
-  const raw = await apiGet(
-    `projects/${pid}/folders/${fid}/files/${fileId}`
+  const file = await apiGet(
+    `projects/${projectId}/folders/${folderId}/files/${fileId}`
   );
 
-  const file = normalizeFile(raw);
-  renderFile(file);
-}
+  const rows = {
+    "File Name": file.name,
+    "File Type": file.file_type,
+    "Size (KB)": (file.byte_size / 1024).toFixed(2),
+    "Created At": new Date(file.created_at).toLocaleString(),
+    "Updated At": new Date(file.updated_at).toLocaleString(),
+    "Creator": peopleMap[file.creator?.id] || file.creator?.id,
+    "Updated By": peopleMap[file.updated_by] || file.updated_by,
+    "Project": projectMap[file.project?.id],
+    "Folder": folderMap[file.folder?.id],
+    "Approved Count": file.approved_count,
+    "Proof Version": file.proof_version,
+    "Source": file.source,
+    "Download URL": `<a href="${file.url?.download}" target="_blank">Download</a>`,
+    "View URL": `<a href="${file.url?.view}" target="_blank">View</a>`
+  };
 
-/* ===============================
-   RENDER FILE
-================================ */
-function renderFile(f) {
-  const tbody = document.getElementById("fileBody");
+  const tbody = document.getElementById("fileDetails");
   tbody.innerHTML = "";
 
-  const detailId = `detail_${f.id}`;
-
-  tbody.innerHTML = `
-<tr>
-  <td class="expand" onclick="toggle('${detailId}')">▶</td>
-  <td>${f.name}</td>
-  <td>${f.type}</td>
-  <td>${f.size}</td>
-  <td>${personName(f.creator)}</td>
-  <td>${projectName(f.project)}</td>
-  <td>${folderName(f.folder)}</td>
-  <td>${f.created_at}</td>
-</tr>
-
-<tr id="${detailId}" class="d-none bg-light">
-<td colspan="8">
-  <div class="row g-3">
-
-    <div class="col-md-4"><b>Updated By</b><br>${personName(f.updated_by)}</div>
-    <div class="col-md-4"><b>Updated At</b><br>${f.updated_at}</div>
-    <div class="col-md-4"><b>By Me</b><br>${f.by_me}</div>
-
-    <div class="col-md-4"><b>Connected With</b><br>${f.connected_with}</div>
-    <div class="col-md-4"><b>Connected ID</b><br>${f.connected_id}</div>
-
-    <div class="col-md-4"><b>Version Count</b><br>${f.version_count}</div>
-    <div class="col-md-4"><b>Current Version</b><br>${f.current_version}</div>
-
-    <div class="col-md-8">
-      <b>Notify</b><br>
-      ${f.notify.length ? f.notify.map(personName).join(", ") : "-"}
-    </div>
-
-    <div class="col-md-12">
-      <b>Links</b><br>
-      ${f.urls.download ? `<a href="${f.urls.download}" target="_blank">Download</a>` : "-"} |
-      ${f.urls.view ? `<a href="${f.urls.view}" target="_blank">View</a>` : "-"} |
-      ${f.urls.share ? `<a href="${f.urls.share}" target="_blank">Share</a>` : "-"} |
-      ${f.urls.proofing ? `<a href="${f.urls.proofing}" target="_blank">Proofing</a>` : "-"}
-    </div>
-
-  </div>
-</td>
-</tr>`;
+  Object.entries(rows).forEach(([k, v]) => {
+    tbody.innerHTML += `
+      <tr>
+        <th>${k}</th>
+        <td>${v ?? "-"}</td>
+      </tr>
+    `;
+  });
 }
 
-/* ===============================
-   EVENTS
-================================ */
+// -------------------- INIT --------------------
 document.addEventListener("DOMContentLoaded", loadProjects);
-
-projectSelect.addEventListener("change", () => {
-  if (projectSelect.value) loadFolders(projectSelect.value);
-});
