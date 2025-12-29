@@ -33,7 +33,12 @@ async function preloadLookups() {
   ]);
 
   people.forEach(p => {
-    peopleMap[p.id] = p.name || p.email || `User ${p.id}`;
+  const fullName = [p.first_name, p.last_name]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+
+  peopleMap[p.id] = fullName || `User ${p.id}`;
   });
 
   projects.forEach(p => {
