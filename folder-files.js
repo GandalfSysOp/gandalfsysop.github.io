@@ -1,7 +1,7 @@
 const BASE_URL =
   "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
-/* ============ API ============ */
+/* ================= API ================= */
 
 async function apiGet(path) {
   const res = await fetch(`${BASE_URL}?path=${encodeURIComponent(path)}`);
@@ -9,7 +9,7 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ============ INIT ============ */
+/* ================= INIT ================= */
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -24,13 +24,13 @@ async function init() {
   projectSelect.addEventListener("change", loadFolders);
 }
 
-/* ============ LOAD FOLDERS ============ */
+/* ================= FOLDERS ================= */
 
 async function loadFolders() {
   const projectId = document.getElementById("projectSelect").value;
   const folderSelect = document.getElementById("folderSelect");
 
-  folderSelect.innerHTML = `<option value="">Loading folders...</option>`;
+  folderSelect.innerHTML = `<option>Loading...</option>`;
   document.getElementById("filesBody").innerHTML = "";
   document.getElementById("countText").textContent = "";
 
@@ -42,14 +42,20 @@ async function loadFolders() {
 
   folderSelect.innerHTML =
     `<option value="">Select folder</option>` +
-    folders.map(f => `
-      <option value="${f.id}">
-        ${"— ".repeat(f.level - 1)}${f.name}
-      </option>
-    `).join("");
+    folders.map(f =>
+      `<option value="${f.id}">${"— ".repeat(f.level - 1)}${f.name}</option>`
+    ).join("");
 }
 
-/* ============ FETCH FILES ============ */
+function flattenFolders(node, list) {
+  if (!node) return;
+  list.push({ id: node.id, name: node.name, level: node.level });
+  if (Array.isArray(node.children)) {
+    node.children.forEach(c => flattenFolders(c, list));
+  }
+}
+
+/* ================= FILES ================= */
 
 async function fetchFiles() {
   const projectId = document.getElementById("projectSelect").value;
@@ -64,23 +70,7 @@ async function fetchFiles() {
   renderFiles(files || []);
 }
 
-/* ============ FLATTEN FOLDER TREE ============ */
-
-function flattenFolders(node, list) {
-  if (!node) return;
-
-  list.push({
-    id: node.id,
-    name: node.name,
-    level: node.level
-  });
-
-  if (Array.isArray(node.children)) {
-    node.children.forEach(child => flattenFolders(child, list));
-  }
-}
-
-/* ============ RENDER FILES ============ */
+/* ================= RENDER ================= */
 
 function renderFiles(files) {
   const body = document.getElementById("filesBody");
@@ -92,30 +82,98 @@ function renderFiles(files) {
   if (!files.length) {
     body.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-muted">
-          No files found in this folder
-        </td>
+        <td colspan="6" class="text-center text-muted">No files found</td>
       </tr>`;
     return;
   }
 
   files.forEach(file => {
+    const rowId = `file-${file.id}`;
+
+    /* Main Row */
     body.insertAdjacentHTML("beforeend", `
       <tr>
-        <td class="file-name">
-          <i class="bi bi-file-earmark me-1"></i>${file.name || "-"}
+        <td style="width:28px" onclick="toggle('${rowId}')">
+          <i class="bi bi-chevron-right text-primary"></i>
         </td>
-        <td>${file.id || "-"}</td>
-        <td>${file.type || "-"}</td>
-        <td>${formatSize(file.size)}</td>
+        <td>${file.name || "-"}</td>
+        <td>${file.id}</td>
+        <td>${file.file_type || "-"}</td>
+        <td>${formatSize(file.byte_size)}</td>
         <td>${formatDate(file.created_at)}</td>
-        <td>${formatDate(file.updated_at)}</td>
+      </tr>
+    `);
+
+    /* Expanded Row */
+    body.insertAdjacentHTML("beforeend", `
+      <tr id="${rowId}" style="display:none;background:#f8fafc">
+        <td colspan="6">
+          <div class="row g-2">
+
+            ${detail("Approved By", file.approved_by)}
+            ${detail("Approved Count", file.approved_count)}
+            ${detail("Approved By Me", file.approved_by_me)}
+            ${detail("By Me", file.by_me)}
+
+            ${detail("Creator ID", file.creator?.id)}
+            ${detail("Updated By", file.updated_by)}
+
+            ${detail("Current Version", file.current_version)}
+            ${detail("Proof Count", file.proof_count)}
+            ${detail("Proof Version", file.proof_version)}
+            ${detail("Version Count", file.version_count)}
+
+            ${detail("Connected With", file.connected_with)}
+            ${detail("Connected ID", file.connected_id)}
+            ${detail("Source", file.source)}
+
+            ${detail("Notify Users", join(file.notify))}
+            ${detail("Project ID", file.project?.id)}
+            ${detail("Folder ID", file.folder?.id)}
+
+            ${link("View", file.url?.view)}
+            ${link("Download", file.url?.download)}
+            ${link("Proofing", file.url?.proofing)}
+            ${link("Share", file.url?.share)}
+
+            ${detail("Updated At", formatDate(file.updated_at))}
+          </div>
+        </td>
       </tr>
     `);
   });
 }
 
-/* ============ UTIL ============ */
+/* ================= TOGGLE ================= */
+
+function toggle(id) {
+  const row = document.getElementById(id);
+  if (!row) return;
+  row.style.display = row.style.display === "none" ? "table-row" : "none";
+}
+
+/* ================= HELPERS ================= */
+
+function detail(label, value) {
+  return `
+    <div class="col-md-4">
+      <div class="text-muted small">${label}</div>
+      <div>${value ?? "-"}</div>
+    </div>`;
+}
+
+function link(label, url) {
+  if (!url) return "";
+  return `
+    <div class="col-md-4">
+      <div class="text-muted small">${label}</div>
+      <a href="${url}" target="_blank">${label}</a>
+    </div>`;
+}
+
+function join(arr) {
+  return Array.isArray(arr) ? arr.join(", ") : "-";
+}
 
 function formatDate(val) {
   if (!val) return "-";
@@ -125,6 +183,5 @@ function formatDate(val) {
 function formatSize(bytes) {
   if (!bytes) return "-";
   const kb = bytes / 1024;
-  if (kb < 1024) return kb.toFixed(1) + " KB";
-  return (kb / 1024).toFixed(2) + " MB";
+  return kb < 1024 ? kb.toFixed(1) + " KB" : (kb / 1024).toFixed(2) + " MB";
 }
