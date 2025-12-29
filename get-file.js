@@ -1,19 +1,34 @@
 const API_BASE =
   "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
-// -------------------- SAFE API CALL --------------------
+// ---------------- API ----------------
 async function apiGet(path) {
   const url = `${API_BASE}?path=${encodeURIComponent(path)}`;
   const res = await fetch(url);
-  if (!res.ok) throw new Error("API failed");
+  if (!res.ok) throw new Error("API error");
   return res.json();
 }
 
-// -------------------- LOOKUPS --------------------
+// ---------------- LOOKUPS ----------------
 const peopleMap = {};
 const projectMap = {};
 const folderMap = {};
 
+function safeDate(value) {
+  if (!value) return "-";
+  const d = new Date(value);
+  return isNaN(d) ? "-" : d.toLocaleString();
+}
+
+function nameFromPeople(id) {
+  return peopleMap[id] || `#${id}`;
+}
+
+function namesFromPeople(ids = []) {
+  return ids.map(id => nameFromPeople(id)).join(", ") || "-";
+}
+
+// ---------------- PRELOAD ----------------
 async function preloadLookups() {
   const [people, projects] = await Promise.all([
     apiGet("people"),
@@ -29,27 +44,25 @@ async function preloadLookups() {
   });
 }
 
-// -------------------- LOAD PROJECTS --------------------
+// ---------------- PROJECTS ----------------
 async function loadProjects() {
   await preloadLookups();
-
   const projects = await apiGet("projects");
-  const select = document.getElementById("projectSelect");
 
-  select.innerHTML = `<option value="">Select Project</option>`;
+  projectSelect.innerHTML = `<option value="">Select Project</option>`;
   projects.forEach(p => {
-    select.innerHTML += `<option value="${p.id}">${p.title}</option>`;
+    projectSelect.innerHTML += `<option value="${p.id}">${p.title}</option>`;
   });
 
-  select.onchange = loadFolders;
+  projectSelect.onchange = loadFolders;
 }
 
-// -------------------- LOAD FOLDERS --------------------
+// ---------------- FOLDERS ----------------
 async function loadFolders() {
   const projectId = projectSelect.value;
   if (!projectId) return;
 
-  const data = await apiGet(`projects/${projectId}/folders`);
+  const root = await apiGet(`projects/${projectId}/folders`);
   folderSelect.innerHTML = `<option value="">Select Folder</option>`;
 
   function walk(folder) {
@@ -58,57 +71,64 @@ async function loadFolders() {
     folder.children?.forEach(walk);
   }
 
-  walk(data);
+  walk(root);
   folderSelect.onchange = loadFiles;
 }
 
-// -------------------- LOAD FILES --------------------
+// ---------------- FILES ----------------
 async function loadFiles() {
   const projectId = projectSelect.value;
   const folderId = folderSelect.value;
   if (!folderId) return;
 
-  const files = await apiGet(`projects/${projectId}/folders/${folderId}/files`);
-  fileSelect.innerHTML = `<option value="">Select File</option>`;
+  const files = await apiGet(
+    `projects/${projectId}/folders/${folderId}/files`
+  );
 
+  fileSelect.innerHTML = `<option value="">Select File</option>`;
   files.forEach(f => {
     fileSelect.innerHTML += `<option value="${f.id}">${f.name}</option>`;
   });
 }
 
-// -------------------- FILE DETAILS --------------------
+// ---------------- FILE DETAILS ----------------
 async function fetchFileDetails() {
   const projectId = projectSelect.value;
   const folderId = folderSelect.value;
   const fileId = fileSelect.value;
   if (!fileId) return;
 
-  const file = await apiGet(
+  let data = await apiGet(
     `projects/${projectId}/folders/${folderId}/files/${fileId}`
   );
+
+  // ✅ CRITICAL FIX: unwrap array
+  const file = Array.isArray(data) ? data[0] : data;
 
   const rows = {
     "File Name": file.name,
     "File Type": file.file_type,
-    "Size (KB)": (file.byte_size / 1024).toFixed(2),
-    "Created At": new Date(file.created_at).toLocaleString(),
-    "Updated At": new Date(file.updated_at).toLocaleString(),
-    "Creator": peopleMap[file.creator?.id] || file.creator?.id,
-    "Updated By": peopleMap[file.updated_by] || file.updated_by,
+    "Size (KB)": file.byte_size ? (file.byte_size / 1024).toFixed(2) : "-",
+    "Source": file.source,
+    "Created At": safeDate(file.created_at),
+    "Updated At": safeDate(file.updated_at),
+    "Creator": nameFromPeople(file.creator?.id),
+    "Updated By": nameFromPeople(file.updated_by),
+    "Approved By": namesFromPeople(file.approved_by),
+    "Notify": namesFromPeople(file.notify),
     "Project": projectMap[file.project?.id],
     "Folder": folderMap[file.folder?.id],
-    "Approved Count": file.approved_count,
+    "Proof Count": file.proof_count,
     "Proof Version": file.proof_version,
-    "Source": file.source,
-    "Download URL": `<a href="${file.url?.download}" target="_blank">Download</a>`,
-    "View URL": `<a href="${file.url?.view}" target="_blank">View</a>`
+    "Current Version": file.current_version ? "Yes" : "No",
+    "Download": `<a href="${file.url?.download}" target="_blank">Download</a>`,
+    "View": `<a href="${file.url?.view}" target="_blank">View</a>`,
+    "Share": `<a href="${file.url?.share}" target="_blank">Share</a>`
   };
 
-  const tbody = document.getElementById("fileDetails");
-  tbody.innerHTML = "";
-
+  fileDetails.innerHTML = "";
   Object.entries(rows).forEach(([k, v]) => {
-    tbody.innerHTML += `
+    fileDetails.innerHTML += `
       <tr>
         <th>${k}</th>
         <td>${v ?? "-"}</td>
@@ -117,5 +137,5 @@ async function fetchFileDetails() {
   });
 }
 
-// -------------------- INIT --------------------
+// ---------------- INIT ----------------
 document.addEventListener("DOMContentLoaded", loadProjects);
