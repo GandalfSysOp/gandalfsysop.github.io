@@ -1,4 +1,4 @@
-const API_BASE = "https://projects.proofhub.com/api/v3";
+const API_BASE = "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
 let projects = [];
 let folders = [];
