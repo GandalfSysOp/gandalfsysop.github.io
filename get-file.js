@@ -1,143 +1,154 @@
-const API_BASE = "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
+/* ================= CONFIG ================= */
 
-let projects = [];
-let folders = [];
-let files = [];
+const API_BASE =
+  "https://script.google.com/macros/s/AKfycbz0hhGxhstl2xdyUBM5qtfN2VXP2oVKoSwZ8elcP6dkETdz-_yECOsNIOPNmwjur4A0/exec";
 
-const projectSelect = document.getElementById("projectSelect");
-const folderSelect = document.getElementById("folderSelect");
-const fileSelect = document.getElementById("fileSelect");
-const fileSearch = document.getElementById("fileSearch");
-const fileDetails = document.getElementById("fileDetails");
+/* ================= API HELPER ================= */
 
-/* ------------------ INIT ------------------ */
-document.addEventListener("DOMContentLoaded", () => {
-  loadProjects();
+async function apiGet(path) {
+  const url = `${API_BASE}?path=${encodeURIComponent(path)}`;
+  const res = await fetch(url);
+
+  if (!res.ok) {
+    throw new Error(`API failed: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+/* ================= STATE ================= */
+
+let PROJECTS = [];
+let FOLDERS = [];
+let FILES = [];
+
+/* ================= INIT ================= */
+
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadProjects();
 });
 
-/* ------------------ LOAD PROJECTS ------------------ */
+/* ================= LOAD PROJECTS ================= */
+
 async function loadProjects() {
-  const res = await fetch(`${API_BASE}/projects`);
-  projects = await res.json();
+  const select = document.getElementById("projectSelect");
+  select.innerHTML = `<option value="">Select Project</option>`;
 
-  projectSelect.innerHTML = projects
-    .map(p => `<option value="${p.id}">${p.title}</option>`)
-    .join("");
+  PROJECTS = await apiGet("projects");
 
-  loadFolders();
+  PROJECTS.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.title;
+    select.appendChild(opt);
+  });
 }
 
-projectSelect.addEventListener("change", loadFolders);
+/* ================= LOAD FOLDERS ================= */
 
-/* ------------------ LOAD FOLDERS ------------------ */
 async function loadFolders() {
-  const projectId = projectSelect.value;
-  const res = await fetch(`${API_BASE}/projects/${projectId}/folders`);
-  const root = await res.json();
+  const projectId = document.getElementById("projectSelect").value;
+  if (!projectId) return;
 
-  folders = root.children || [];
+  const select = document.getElementById("folderSelect");
+  select.innerHTML = `<option value="">Select Folder</option>`;
 
-  folderSelect.innerHTML = folders
-    .map(f => `<option value="${f.id}">${f.name}</option>`)
-    .join("");
+  const data = await apiGet(`projects/${projectId}/folders`);
 
-  loadFiles();
+  FOLDERS = [];
+
+  function flatten(folder) {
+    FOLDERS.push(folder);
+    (folder.children || []).forEach(flatten);
+  }
+
+  flatten(data);
+
+  FOLDERS.forEach(f => {
+    const opt = document.createElement("option");
+    opt.value = f.id;
+    opt.textContent = `${"—".repeat(f.level - 1)} ${f.name}`;
+    select.appendChild(opt);
+  });
 }
 
-folderSelect.addEventListener("change", loadFiles);
+/* ================= LOAD FILES ================= */
 
-/* ------------------ LOAD FILES ------------------ */
 async function loadFiles() {
-  const projectId = projectSelect.value;
-  const folderId = folderSelect.value;
+  const projectId = document.getElementById("projectSelect").value;
+  const folderId = document.getElementById("folderSelect").value;
+  if (!projectId || !folderId) return;
 
-  const res = await fetch(
-    `${API_BASE}/projects/${projectId}/folders/${folderId}/files`
+  const select = document.getElementById("fileSelect");
+  select.innerHTML = "";
+
+  FILES = await apiGet(
+    `projects/${projectId}/folders/${folderId}/files`
   );
-  files = await res.json();
 
-  renderFileDropdown(files);
+  FILES.forEach(file => {
+    const opt = document.createElement("option");
+    opt.value = file.id;
+    opt.textContent = `${file.name} (${file.file_type || "-"})`;
+    select.appendChild(opt);
+  });
+
+  if (window.jQuery && $(select).select2) {
+    $(select).select2({ width: "100%" });
+  }
 }
 
-/* ------------------ SEARCHABLE FILE DROPDOWN ------------------ */
-fileSearch.addEventListener("input", () => {
-  const q = fileSearch.value.toLowerCase();
-  const filtered = files.filter(f =>
-    f.name.toLowerCase().includes(q)
-  );
-  renderFileDropdown(filtered);
-});
+/* ================= FETCH FILE DETAILS ================= */
 
-function renderFileDropdown(list) {
-  fileSelect.innerHTML = list
-    .map(f => `<option value="${f.id}">${f.name}</option>`)
-    .join("");
-}
-
-/* ------------------ FETCH FILE DETAILS ------------------ */
 async function fetchFileDetails() {
-  const projectId = projectSelect.value;
-  const folderId = folderSelect.value;
-  const fileId = fileSelect.value;
+  const projectId = document.getElementById("projectSelect").value;
+  const folderId = document.getElementById("folderSelect").value;
+  const fileId = document.getElementById("fileSelect").value;
 
-  const res = await fetch(
-    `${API_BASE}/projects/${projectId}/folders/${folderId}/files/${fileId}`
+  if (!projectId || !folderId || !fileId) {
+    alert("Please select project, folder and file");
+    return;
+  }
+
+  const data = await apiGet(
+    `projects/${projectId}/folders/${folderId}/files/${fileId}`
   );
-  const file = await res.json();
 
-  renderFileDetails(file);
+  renderFile(data);
 }
 
-/* ------------------ RENDER FILE DETAILS ------------------ */
-function renderFileDetails(f) {
-  fileDetails.innerHTML = `
-    <div class="card p-3">
-      <div class="d-flex justify-content-between">
-        <div>
-          <h6 class="mb-1">${f.name}</h6>
-          <div class="text-muted small">${f.file_type?.toUpperCase()} • ${f.byte_size} bytes</div>
-        </div>
-        <div class="expand" onclick="toggleDetails()">
-          <i class="bi bi-chevron-down"></i>
-        </div>
-      </div>
+/* ================= RENDER ================= */
 
-      <div id="extraDetails" class="hidden mt-3">
-        ${renderField("ID", f.id)}
-        ${renderField("Created At", f.created_at)}
-        ${renderField("Updated At", f.updated_at)}
-        ${renderField("Proof Version", f.proof_version)}
-        ${renderField("Version Count", f.version_count)}
-        ${renderField("By Me", f.by_me)}
-        ${renderField("Approved Count", f.approved_count)}
-        ${renderField("Source", f.source)}
-        ${renderLinks(f.url)}
-      </div>
-    </div>
-  `;
+function renderFile(file) {
+  const container = document.getElementById("fileDetails");
+  container.innerHTML = "";
+
+  Object.entries(file).forEach(([key, value]) => {
+    const row = document.createElement("div");
+    row.className = "field-row";
+
+    row.innerHTML = `
+      <div class="label">${key.replace(/_/g, " ")}</div>
+      <div class="value">${formatValue(value)}</div>
+    `;
+
+    container.appendChild(row);
+  });
 }
 
-function renderField(label, value) {
-  return `
-    <div class="row mb-1">
-      <div class="col-4 label">${label}</div>
-      <div class="col-8 value">${value ?? "-"}</div>
-    </div>
-  `;
-}
+/* ================= FORMATTERS ================= */
 
-function renderLinks(url) {
-  if (!url) return "";
-  return `
-    <div class="mt-2">
-      <a href="${url.view}" target="_blank">View</a> |
-      <a href="${url.download}" target="_blank">Download</a> |
-      <a href="${url.share}" target="_blank">Share</a>
-    </div>
-  `;
-}
+function formatValue(val) {
+  if (val === null || val === undefined) return "-";
 
-/* ------------------ TOGGLE ------------------ */
-function toggleDetails() {
-  document.getElementById("extraDetails").classList.toggle("hidden");
+  if (Array.isArray(val)) return val.join(", ");
+
+  if (typeof val === "object") {
+    if (val.download) {
+      return `<a href="${val.download}" target="_blank">Download</a>`;
+    }
+    return `<pre>${JSON.stringify(val, null, 2)}</pre>`;
+  }
+
+  return val.toString();
 }
