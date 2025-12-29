@@ -32,12 +32,13 @@ async function fetchWorkflows() {
 /* ================= RENDER ================= */
 
 function renderWorkflowRow(wf, container) {
-  const id = `wf_${wf.id}`;
+  const expandId = `wf_${wf.id}`;
 
+  /* ---- MAIN ROW ---- */
   const row = document.createElement("tr");
   row.innerHTML = `
-    <td class="expand" onclick="toggle('${id}')">
-      <i class="bi bi-chevron-right" id="${id}_icon"></i>
+    <td class="expand" onclick="toggle('${expandId}')">
+      <i class="bi bi-chevron-right" id="${expandId}_icon"></i>
     </td>
     <td>
       <strong>${wf.title}</strong><br>
@@ -50,17 +51,46 @@ function renderWorkflowRow(wf, container) {
     <td>${formatDate(wf.updated_at)}</td>
   `;
 
+  /* ---- EXPANDED ROW ---- */
   const expandRow = document.createElement("tr");
-  expandRow.id = id;
+  expandRow.id = expandId;
   expandRow.style.display = "none";
   expandRow.innerHTML = `
     <td colspan="7">
-      <div>
-        ${wf.workflow_stages.map(stage => `
-          <span class="stage-pill ${stage.is_default ? "default" : ""}">
-            ${stage.title}
-          </span>
-        `).join("")}
+      <div class="table-responsive mt-2">
+        <table class="table table-sm table-bordered align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Stage ID</th>
+              <th>Title</th>
+              <th>Default</th>
+              <th>Created At</th>
+              <th>Updated At</th>
+              <th>Workflow</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${
+              wf.workflow_stages.map(stage => `
+                <tr>
+                  <td>${stage.id}</td>
+                  <td>
+                    ${stage.title}
+                    ${
+                      stage.is_default
+                        ? `<span class="badge bg-success ms-1">Default</span>`
+                        : ""
+                    }
+                  </td>
+                  <td>${stage.is_default ? "Yes" : "No"}</td>
+                  <td>${formatDate(stage.created_at)}</td>
+                  <td>${formatDate(stage.updated_at)}</td>
+                  <td>${stage.workflow}</td>
+                </tr>
+              `).join("")
+            }
+          </tbody>
+        </table>
       </div>
     </td>
   `;
@@ -75,6 +105,8 @@ function toggle(id) {
   const row = document.getElementById(id);
   const icon = document.getElementById(`${id}_icon`);
 
+  if (!row) return;
+
   if (row.style.display === "none") {
     row.style.display = "table-row";
     icon.className = "bi bi-chevron-down";
@@ -88,5 +120,5 @@ function toggle(id) {
 
 function formatDate(val) {
   if (!val) return "-";
-  return new Date(val).toLocaleDateString();
+  return new Date(val).toLocaleString();
 }
