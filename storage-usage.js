@@ -15,7 +15,13 @@ function formatLimit(value, unit = "") {
   return value === 99999 ? "Unlimited" : `${value}${unit}`;
 }
 
-function percent(value) {
+function formatPercent(value) {
+  const num = Number(value);
+  if (isNaN(num)) return "0%";
+  return `${num}%`;
+}
+
+function clampPercent(value) {
   return Math.min(Number(value) || 0, 100);
 }
 
@@ -24,12 +30,20 @@ function metricCard(title, main, sub, pct) {
     <div class="col-md-4">
       <div class="card p-3 h-100">
         <div class="metric-title">${title}</div>
+
         <div class="metric-value">${main}</div>
-        <div class="metric-sub mb-2">${sub}</div>
-        ${pct !== null ? `
-          <div class="progress">
-            <div class="progress-bar bg-indigo" style="width:${pct}%"></div>
-          </div>` : ""}
+
+        <div class="metric-sub mb-1">${sub}</div>
+
+        <div class="metric-sub mb-2">
+          <strong>Usage:</strong> ${formatPercent(pct)}
+        </div>
+
+        <div class="progress">
+          <div class="progress-bar bg-primary"
+               style="width:${clampPercent(pct)}%">
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -47,23 +61,23 @@ async function fetchUsage() {
     container.innerHTML = `
       ${metricCard(
         "Projects",
-        `${d.projects_limit_consumed}`,
+        d.projects_limit_consumed,
         `Limit: ${formatLimit(d.projects_limit)}`,
-        percent(d.projects_limit_consumed_percentage)
+        d.projects_limit_consumed_percentage
       )}
 
       ${metricCard(
         "Users",
-        `${d.user_limit_consumed}`,
+        d.user_limit_consumed,
         `Limit: ${formatLimit(d.user_limit)}`,
-        percent(d.user_limit_consumed_percentage)
+        d.user_limit_consumed_percentage
       )}
 
       ${metricCard(
         "Storage",
         `${d.memory_limit_consumed} GB`,
         `Limit: ${formatLimit(d.memory_limit, " GB")}`,
-        percent(d.memory_limit_consumed_percentage)
+        d.memory_limit_consumed_percentage
       )}
     `;
 
