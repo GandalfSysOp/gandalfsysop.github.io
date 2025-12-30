@@ -1,5 +1,5 @@
 const BASE_URL =
-  "https://script.google.com/macros/s/AKfycbzoLhRhFe9Y6ufl2DVFwh9mEWdRTelfD1EA7xSesXOWXsmYH9NoeXOJmIrJcYs3Miy9tg/exec";
+  "https://script.google.com/macros/s/AKfycbzNjVt4eZjS9N2fGWFxxAD_lS9L2azpobkHjG5XxMojfYV21XrIU8mfePS7X4km0OeuhQ/exec";
 
 /* ================= API ================= */
 
