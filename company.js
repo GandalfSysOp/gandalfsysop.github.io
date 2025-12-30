@@ -1,12 +1,37 @@
 const GAS_URL =
   "https://script.google.com/macros/s/AKfycbzNjVt4eZjS9N2fGWFxxAD_lS9L2azpobkHjG5XxMojfYV21XrIU8mfePS7X4km0OeuhQ/exec";
 
+/* ================= GLOBAL LOOKUPS ================= */
+
+let peopleMap = {};
+
 /* ================= API ================= */
 
 async function apiGet(path) {
   const res = await fetch(`${GAS_URL}?path=${encodeURIComponent(path)}`);
   if (!res.ok) throw new Error(await res.text());
   return res.json();
+}
+
+/* ================= PRELOAD PEOPLE ================= */
+
+async function preloadPeople() {
+  const people = await apiGet("people");
+
+  people.forEach(p => {
+    const name =
+      [p.first_name, p.last_name].filter(Boolean).join(" ") ||
+      p.email ||
+      `User ${p.id}`;
+
+    peopleMap[p.id] = name;
+  });
+}
+
+/* ================= HELPERS ================= */
+
+function getPersonName(id) {
+  return peopleMap[id] ? `${peopleMap[id]} (${id})` : id;
 }
 
 /* ================= RENDER ================= */
@@ -53,8 +78,8 @@ function renderCompany(data) {
       </div>
 
       <div class="col-md-6 mt-3">
-        <div class="label">Owner (User ID)</div>
-        <div class="value">${data.owner}</div>
+        <div class="label">Owner</div>
+        <div class="value">${getPersonName(data.owner)}</div>
       </div>
 
       <div class="col-md-6 mt-3">
@@ -69,8 +94,9 @@ function renderCompany(data) {
 
 document.addEventListener("DOMContentLoaded", async () => {
   try {
-    const data = await apiGet("company");
-    renderCompany(data);
+    await preloadPeople();
+    const company = await apiGet("company");
+    renderCompany(company);
   } catch (err) {
     document.getElementById("companyContent").innerHTML =
       `<div class="text-danger">${err.message}</div>`;
