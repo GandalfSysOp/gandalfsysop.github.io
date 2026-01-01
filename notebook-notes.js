@@ -6,6 +6,11 @@ let PROJECT_MAP = {};
 document.addEventListener("DOMContentLoaded", async () => {
   await preloadLookups();
   await loadProjects();
+
+  // React to project change
+  document
+    .getElementById("projectSelect")
+    .addEventListener("change", onProjectChange);
 });
 
 /* ================= API ================= */
@@ -35,7 +40,9 @@ async function preloadLookups() {
 
 async function loadProjects() {
   const select = document.getElementById("projectSelect");
-  select.innerHTML = "";
+  select.innerHTML = `
+    <option value="">Select project</option>
+  `;
 
   Object.entries(PROJECT_MAP).forEach(([id, title]) => {
     const opt = document.createElement("option");
@@ -44,13 +51,25 @@ async function loadProjects() {
     select.appendChild(opt);
   });
 
-  await loadNotebooks();
+  // Disable notebook dropdown initially
+  const notebookSelect = document.getElementById("notebookSelect");
+  notebookSelect.innerHTML = `<option value="">Select notebook</option>`;
+  notebookSelect.disabled = true;
 }
 
-async function loadNotebooks() {
+/* ================= PROJECT CHANGE ================= */
+
+async function onProjectChange() {
   const projectId = document.getElementById("projectSelect").value;
-  const select = document.getElementById("notebookSelect");
-  select.innerHTML = "";
+  const notebookSelect = document.getElementById("notebookSelect");
+
+  notebookSelect.innerHTML = `<option value="">Select notebook</option>`;
+  notebookSelect.disabled = true;
+
+  document.getElementById("notesBody").innerHTML = "";
+  document.getElementById("countText").textContent = "";
+
+  if (!projectId) return;
 
   const data = await apiGet(`projects/${projectId}/notebooks`);
   const notebooks = Array.isArray(data)
@@ -61,8 +80,10 @@ async function loadNotebooks() {
     const opt = document.createElement("option");
     opt.value = nb.id;
     opt.textContent = nb.title;
-    select.appendChild(opt);
+    notebookSelect.appendChild(opt);
   });
+
+  notebookSelect.disabled = false;
 }
 
 /* ================= FETCH ================= */
@@ -71,7 +92,10 @@ async function fetchNotebookNotes() {
   const projectId = document.getElementById("projectSelect").value;
   const notebookId = document.getElementById("notebookSelect").value;
 
-  if (!projectId || !notebookId) return;
+  if (!projectId || !notebookId) {
+    alert("Please select both project and notebook");
+    return;
+  }
 
   const data = await apiGet(
     `projects/${projectId}/notebooks/${notebookId}`
