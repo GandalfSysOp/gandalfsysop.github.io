@@ -1,54 +1,62 @@
 const API_BASE = "https://script.google.com/macros/s/AKfycbzNjVt4eZjS9N2fGWFxxAD_lS9L2azpobkHjG5XxMojfYV21XrIU8mfePS7X4km0OeuhQ/exec";
 
-let peopleMap = {};
-let projectMap = {};
-let notebooksCache = {};
+let PEOPLE_MAP = {};
+let PROJECT_MAP = {};
 
 document.addEventListener("DOMContentLoaded", async () => {
   await preloadLookups();
   await loadProjects();
 });
 
+/* ================= API ================= */
+
 async function apiGet(path) {
   const res = await fetch(`${API_BASE}?path=${encodeURIComponent(path)}`);
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-/* ---------- preload people & projects ---------- */
+/* ================= PRELOAD LOOKUPS ================= */
+
 async function preloadLookups() {
   const people = await apiGet("people");
   people.forEach(p => {
-    peopleMap[p.id] = `${p.first_name || ""} ${p.last_name || ""}`.trim();
+    PEOPLE_MAP[p.id] =
+      `${p.first_name || ""} ${p.last_name || ""}`.trim() || `ID ${p.id}`;
   });
 
   const projects = await apiGet("projects");
   projects.forEach(p => {
-    projectMap[p.id] = p.title;
+    PROJECT_MAP[p.id] = p.title;
   });
 }
 
-/* ---------- load projects ---------- */
+/* ================= LOAD PROJECTS ================= */
+
 async function loadProjects() {
   const select = document.getElementById("projectSelect");
   select.innerHTML = "";
 
-  Object.entries(projectMap).forEach(([id, name]) => {
+  Object.entries(PROJECT_MAP).forEach(([id, title]) => {
     const opt = document.createElement("option");
     opt.value = id;
-    opt.textContent = name;
+    opt.textContent = title;
     select.appendChild(opt);
   });
 }
 
-/* ---------- fetch notebooks ---------- */
+/* ================= FETCH NOTEBOOKS ================= */
+
 async function fetchNotebooks() {
   const projectId = document.getElementById("projectSelect").value;
+  if (!projectId) return;
+
   const data = await apiGet(`projects/${projectId}/notebooks`);
 
-  const notebooks = data.notebooks || [];
-  notebooksCache = {};
-
-  notebooks.forEach(n => notebooksCache[n.id] = n);
+  // 🔥 FIX: API sometimes returns ARRAY directly
+  const notebooks = Array.isArray(data)
+    ? data
+    : data.notebooks || [];
 
   document.getElementById("countText").textContent =
     `Total Notebooks: ${notebooks.length}`;
@@ -56,29 +64,34 @@ async function fetchNotebooks() {
   renderNotebooks(notebooks);
 }
 
-/* ---------- render table ---------- */
-function renderNotebooks(list) {
+/* ================= RENDER ================= */
+
+function renderNotebooks(notebooks) {
   const tbody = document.getElementById("notebooksBody");
   tbody.innerHTML = "";
 
-  if (!list.length) {
-    tbody.innerHTML =
-      `<tr><td colspan="8" class="text-center text-muted">No notebooks found</td></tr>`;
+  if (!notebooks.length) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="8" class="text-center text-muted">
+          No notebooks found
+        </td>
+      </tr>`;
     return;
   }
 
-  list.forEach(nb => {
+  notebooks.forEach(nb => {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="expand" onclick="toggleNotebook(${nb.id})">
         <i class="bi bi-chevron-right"></i>
       </td>
-      <td>${nb.title}</td>
+      <td>${nb.title || "-"}</td>
       <td>${nb.private ? "Yes" : "No"}</td>
       <td>${nb.pinned ? "Yes" : "No"}</td>
-      <td>${nb.note_count}</td>
-      <td>${nb.comments}</td>
-      <td>${peopleMap[nb.creator?.id] || nb.creator?.id}</td>
+      <td>${nb.note_count ?? "-"}</td>
+      <td>${nb.comments ?? "-"}</td>
+      <td>${PEOPLE_MAP[nb.creator?.id] || nb.creator?.id || "-"}</td>
       <td>${formatDate(nb.updated_at)}</td>
     `;
     tbody.appendChild(tr);
@@ -90,11 +103,26 @@ function renderNotebooks(list) {
     expand.innerHTML = `
       <td colspan="8">
         <div class="row g-2">
-          <div class="col-md-4"><span class="label">Notebook ID</span><div class="value">${nb.id}</div></div>
-          <div class="col-md-4"><span class="label">Project</span><div class="value">${projectMap[nb.project.id]}</div></div>
-          <div class="col-md-4"><span class="label">By Me</span><div class="value">${nb.by_me}</div></div>
-          <div class="col-md-4"><span class="label">Modified At</span><div class="value">${formatDate(nb.modified_at)}</div></div>
-          <div class="col-md-8"><span class="label">Description</span><div class="value">${nb.description || "-"}</div></div>
+          <div class="col-md-4">
+            <div class="label">Notebook ID</div>
+            <div class="value">${nb.id}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="label">Project</div>
+            <div class="value">${PROJECT_MAP[nb.project?.id] || nb.project?.id}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="label">By Me</div>
+            <div class="value">${nb.by_me}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="label">Created At</div>
+            <div class="value">${formatDate(nb.created_at)}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="label">Updated At</div>
+            <div class="value">${formatDate(nb.updated_at)}</div>
+          </div>
         </div>
       </td>
     `;
@@ -102,15 +130,17 @@ function renderNotebooks(list) {
   });
 }
 
-/* ---------- toggle expand ---------- */
+/* ================= TOGGLE ================= */
+
 function toggleNotebook(id) {
   const row = document.getElementById(`nb-${id}`);
   row.style.display = row.style.display === "none" ? "table-row" : "none";
 }
 
-/* ---------- helpers ---------- */
-function formatDate(d) {
-  if (!d) return "-";
-  const dt = new Date(d);
-  return isNaN(dt) ? "-" : dt.toLocaleString();
+/* ================= HELPERS ================= */
+
+function formatDate(val) {
+  if (!val) return "-";
+  const d = new Date(val);
+  return isNaN(d) ? "-" : d.toLocaleString();
 }
