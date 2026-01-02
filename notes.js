@@ -2,27 +2,45 @@
  * CONFIG
  ***********************/
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzNjVt4eZjS9N2fGWFxxAD_lS9L2azpobkHjG5XxMojfYV21XrIU8mfePS7X4km0OeuhQ/exec";
-/***********************
- * LOOKUP MAPS
- ***********************/
+
+/* ================= LOOKUP MAPS ================= */
+
 let PEOPLE_MAP = {};
 let PROJECT_MAP = {};
-let NOTEBOOK_MAP = {};
 
-/***********************
- * API HELPER
- ***********************/
+/* ================= API ================= */
+
 async function apiGet(path) {
   const res = await fetch(`${GAS_URL}?path=${encodeURIComponent(path)}`);
-  if (!res.ok) throw new Error("API request failed");
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
-/***********************
- * FORMATTERS
- ***********************/
+/* ================= PRELOAD LOOKUPS ================= */
+
+async function loadPeople() {
+  if (Object.keys(PEOPLE_MAP).length) return;
+  const people = await apiGet("people");
+  people.forEach(p => {
+    PEOPLE_MAP[p.id] = `${p.first_name || ""} ${p.last_name || ""}`.trim();
+  });
+}
+
+async function loadProjects() {
+  const select = document.getElementById("projectSelect");
+  select.innerHTML = `<option value="">Select project</option>`;
+
+  const projects = await apiGet("projects");
+  projects.forEach(p => {
+    PROJECT_MAP[p.id] = p.title;
+    select.innerHTML += `<option value="${p.id}">${p.title}</option>`;
+  });
+}
+
+/* ================= HELPERS ================= */
+
 function personName(id) {
-  return PEOPLE_MAP[id] || `ID: ${id}`;
+  return PEOPLE_MAP[id] || `User ${id}`;
 }
 
 function formatDate(val) {
@@ -31,76 +49,57 @@ function formatDate(val) {
   return isNaN(d) ? "-" : d.toLocaleString();
 }
 
-/***********************
- * LOAD PEOPLE
- ***********************/
-async function loadPeople() {
-  const people = await apiGet("people");
-  people.forEach(p => {
-    PEOPLE_MAP[p.id] = p.name;
-  });
+function listPeople(arr) {
+  if (!Array.isArray(arr) || !arr.length) return "-";
+  return arr.map(personName).join(", ");
 }
 
-/***********************
- * LOAD PROJECTS
- ***********************/
-async function loadProjects() {
-  const projects = await apiGet("projects");
-  const projectSelect = document.getElementById("projectSelect");
+/* ================= NOTEBOOKS ================= */
 
-  projectSelect.innerHTML =
-    `<option value="">Select project</option>`;
-
-  projects.forEach(p => {
-    PROJECT_MAP[p.id] = p.title;
-    projectSelect.innerHTML +=
-      `<option value="${p.id}">${p.title}</option>`;
-  });
-}
-
-/***********************
- * LOAD NOTEBOOKS (🔥 FIXED)
- ***********************/
 async function loadNotebooks() {
   const projectId = document.getElementById("projectSelect").value;
   const notebookSelect = document.getElementById("notebookSelect");
-  const notesContainer = document.getElementById("notesContainer");
 
-  notebookSelect.innerHTML =
-    `<option value="">Select notebook</option>`;
-  notesContainer.innerHTML = "";
+  notebookSelect.innerHTML = `<option value="">Select notebook</option>`;
+  notebookSelect.disabled = true;
 
   if (!projectId) return;
 
   const res = await apiGet(`projects/${projectId}/notebooks`);
 
-  // 🔒 Handle BOTH response formats
+  // ✅ FIX: normalize response
   const notebooks = Array.isArray(res)
     ? res
     : Array.isArray(res.notebooks)
     ? res.notebooks
     : [];
 
-  NOTEBOOK_MAP = {};
+  if (!notebooks.length) return;
 
   notebooks.forEach(nb => {
-    NOTEBOOK_MAP[nb.id] = nb.title;
-    notebookSelect.innerHTML +=
-      `<option value="${nb.id}">${nb.title}</option>`;
+    notebookSelect.innerHTML += `
+      <option value="${nb.id}">
+        ${nb.title || "Untitled Notebook"}
+      </option>
+    `;
   });
+
+  notebookSelect.disabled = false;
 }
 
-/***********************
- * FETCH NOTES
- ***********************/
+/* ================= NOTES ================= */
+
 async function fetchNotes() {
-  const projectId =
-    document.getElementById("projectSelect").value;
-  const notebookId =
-    document.getElementById("notebookSelect").value;
+  const projectId = document.getElementById("projectSelect").value;
+  const notebookId = document.getElementById("notebookSelect").value;
+  const body = document.getElementById("notesBody");
+  const count = document.getElementById("countText");
+
+  body.innerHTML = "";
+  count.textContent = "";
 
   if (!projectId || !notebookId) {
-    alert("Select project and notebook");
+    alert("Select both project and notebook");
     return;
   }
 
@@ -108,80 +107,45 @@ async function fetchNotes() {
     `projects/${projectId}/notebooks/${notebookId}/notes`
   );
 
-  const notes = Array.isArray(res)
-    ? res
-    : Array.isArray(res.notes)
+  const notes = Array.isArray(res.notes)
     ? res.notes
+    : Array.isArray(res)
+    ? res
     : [];
 
-  renderNotes(notes);
-}
-
-/***********************
- * RENDER NOTES
- ***********************/
-function renderNotes(notes) {
-  const container =
-    document.getElementById("notesContainer");
+  count.textContent = `Total Notes: ${notes.length}`;
 
   if (!notes.length) {
-    container.innerHTML =
-      `<div class="text-muted">No notes found</div>`;
+    body.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center text-muted">
+          No notes found
+        </td>
+      </tr>`;
     return;
   }
 
-  let html = `
-    <table class="table table-sm table-bordered align-middle">
-      <thead>
-        <tr>
-          <th>Title</th>
-          <th>Color</th>
-          <th>Private</th>
-          <th>Creator</th>
-          <th>Assigned</th>
-          <th>Comments</th>
-          <th>Created</th>
-          <th>Updated</th>
-          <th>Updated By</th>
-        </tr>
-      </thead>
-      <tbody>
-  `;
-
   notes.forEach(n => {
-    html += `
+    body.innerHTML += `
       <tr>
-        <td>${n.title || "-"}</td>
-        <td>
-          <span style="display:inline-block;width:12px;height:12px;background:${n.color || "#ccc"}"></span>
-        </td>
+        <td><strong>${n.title}</strong></td>
         <td>${n.private ? "Yes" : "No"}</td>
+        <td>${listPeople(n.assigned)}</td>
         <td>${personName(n.creator?.id)}</td>
-        <td>${
-          Array.isArray(n.assigned)
-            ? n.assigned.map(personName).join(", ")
-            : "-"
-        }</td>
-        <td>${n.comments ?? 0}</td>
         <td>${formatDate(n.created_at)}</td>
         <td>${formatDate(n.updated_at)}</td>
-        <td>${personName(n.updated_by)}</td>
+        <td>${n.comments ?? 0}</td>
       </tr>
     `;
   });
-
-  html += `</tbody></table>`;
-  container.innerHTML = html;
 }
 
-/***********************
- * INIT (🔥 THIS WAS MISSING)
- ***********************/
+/* ================= INIT ================= */
+
 document.addEventListener("DOMContentLoaded", async () => {
   await loadPeople();
   await loadProjects();
 
-  // ✅ THIS LINE FIXES YOUR ISSUE
   document
     .getElementById("projectSelect")
     .addEventListener("change", loadNotebooks);
