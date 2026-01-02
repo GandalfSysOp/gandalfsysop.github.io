@@ -1,54 +1,47 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzNjVt4eZjS9N2fGWFxxAD_lS9L2azpobkHjG5XxMojfYV21XrIU8mfePS7X4km0OeuhQ/exec";
 
-/* ================= LOOKUPS ================= */
+/**************** STATE ****************/
+const PEOPLE_MAP = {};
+const projectSelect = document.getElementById("projectSelect");
+const notebookSelect = document.getElementById("notebookSelect");
 
-let PEOPLE_MAP = {};
-let PROJECT_MAP = {};
-let NOTEBOOK_MAP = {};
-
-/* ================= API ================= */
-
+/**************** HELPERS ****************/
 async function apiGet(path) {
   const res = await fetch(`${GAS_URL}?path=${encodeURIComponent(path)}`);
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error("API failed");
   return res.json();
 }
 
-/* ================= INIT ================= */
+function formatDate(val) {
+  if (!val) return "-";
+  const d = new Date(val);
+  return isNaN(d) ? "-" : d.toLocaleString();
+}
 
-document.addEventListener("DOMContentLoaded", async () => {
-  await loadPeople();
-  await loadProjects();
-});
-
-/* ================= LOADERS ================= */
-
+/**************** PRELOAD PEOPLE ****************/
 async function loadPeople() {
-  const people = await apiGet("people");
-  people.forEach(p => {
-    PEOPLE_MAP[p.id] = `${p.first_name} ${p.last_name}`.trim();
+  const res = await apiGet("people");
+  const list = Array.isArray(res) ? res : res.people || [];
+  list.forEach(p => {
+    PEOPLE_MAP[p.id] = p.name;
   });
 }
 
+/**************** LOAD PROJECTS ****************/
 async function loadProjects() {
-  const projects = await apiGet("projects");
-  const select = document.getElementById("projectSelect");
+  const res = await apiGet("projects");
+  const projects = Array.isArray(res) ? res : res.projects || [];
 
   projects.forEach(p => {
-    PROJECT_MAP[p.id] = p.title;
-    const opt = document.createElement("option");
-    opt.value = p.id;
-    opt.textContent = p.title;
-    select.appendChild(opt);
+    projectSelect.insertAdjacentHTML(
+      "beforeend",
+      `<option value="${p.id}">${p.title}</option>`
+    );
   });
-
-  select.addEventListener("change", loadNotebooks);
 }
 
-async function loadNotebooks() {
-  const projectId = projectSelect.value;
-  const notebookSelect = document.getElementById("notebookSelect");
-
+/**************** LOAD NOTEBOOKS ****************/
+async function loadNotebooks(projectId) {
   notebookSelect.innerHTML =
     `<option value="">Select notebook</option>`;
   notebookSelect.disabled = true;
@@ -57,104 +50,105 @@ async function loadNotebooks() {
 
   const res = await apiGet(`projects/${projectId}/notebooks`);
 
-  // 🔧 FIX: API returns ARRAY, not object
+  // 🔴 API RETURNS ARRAY
   const notebooks = Array.isArray(res)
     ? res
     : res.notebooks || [];
 
   notebooks.forEach(n => {
-    NOTEBOOK_MAP[n.id] = n.title;
-
-    const opt = document.createElement("option");
-    opt.value = n.id;
-    opt.textContent = n.title;
-    notebookSelect.appendChild(opt);
+    notebookSelect.insertAdjacentHTML(
+      "beforeend",
+      `<option value="${n.id}">${n.title}</option>`
+    );
   });
 
   notebookSelect.disabled = false;
 }
 
-/* ================= ACTION ================= */
-
+/**************** FETCH NOTES ****************/
 async function fetchNotes() {
   const projectId = projectSelect.value;
   const notebookId = notebookSelect.value;
+  const container = document.getElementById("notesContainer");
 
-  if (!projectId || !notebookId) {
-    alert("Please select project and notebook");
-    return;
-  }
+  container.innerHTML = "";
+
+  if (!projectId || !notebookId) return;
 
   const res = await apiGet(
     `projects/${projectId}/notebooks/${notebookId}/notes`
   );
 
-  const notes = res.notes || [];
-  document.getElementById("countText").textContent =
-    `Total Notes: ${notes.length}`;
+  // 🔴 API RETURNS ARRAY
+  const notes = Array.isArray(res)
+    ? res
+    : res.notes || [];
+
+  if (!notes.length) {
+    container.innerHTML =
+      `<div class="text-muted small">No notes found</div>`;
+    return;
+  }
 
   renderNotes(notes);
 }
 
-/* ================= RENDER ================= */
-
+/**************** RENDER ****************/
 function renderNotes(notes) {
-  const tbody = document.getElementById("notesBody");
-  tbody.innerHTML = "";
-
-  if (!notes.length) {
-    tbody.innerHTML = `
-      <tr>
-        <td colspan="9" class="text-center text-muted">
-          No notes found
-        </td>
-      </tr>`;
-    return;
-  }
+  const container = document.getElementById("notesContainer");
 
   notes.forEach(n => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td><strong>${n.title}</strong></td>
+    const creator =
+      PEOPLE_MAP[n.creator?.id] || n.creator?.id || "-";
 
-      <td>
-        <span class="badge-color" style="background:${n.color || "#ccc"}"></span>
-        ${n.color || "-"}
-      </td>
+    const updatedBy =
+      PEOPLE_MAP[n.updated_by] || n.updated_by || "-";
 
-      <td>${n.private ? "Yes" : "No"}</td>
+    const assigned =
+      Array.isArray(n.assigned)
+        ? n.assigned.map(id => PEOPLE_MAP[id] || id).join(", ")
+        : "-";
 
-      <td>${formatPeople(n.assigned)}</td>
+    container.insertAdjacentHTML(
+      "beforeend",
+      `
+      <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between">
+          <strong>${n.title}</strong>
+          <span class="badge bg-secondary">
+            ${n.private ? "Private" : "Public"}
+          </span>
+        </div>
 
-      <td>${PEOPLE_MAP[n.creator?.id] || n.creator?.id || "-"}</td>
+        <div class="card-body small">
+          <div class="mb-2">
+            <span class="badge" style="background:${n.color || "#6c757d"}">
+              Color
+            </span>
+          </div>
 
-      <td>${PEOPLE_MAP[n.updated_by] || n.updated_by || "-"}</td>
+          <div><b>Creator:</b> ${creator}</div>
+          <div><b>Updated By:</b> ${updatedBy}</div>
+          <div><b>Assigned:</b> ${assigned}</div>
+          <div><b>Comments:</b> ${n.comments}</div>
+          <div><b>Created:</b> ${formatDate(n.created_at)}</div>
+          <div><b>Updated:</b> ${formatDate(n.updated_at)}</div>
 
-      <td>${n.comments || 0}</td>
-
-      <td><div class="preview">${escapeHtml(n.preview || "")}</div></td>
-
-      <td>${formatDate(n.updated_at)}</td>
-    `;
-    tbody.appendChild(tr);
+          <hr>
+          <div>${n.preview || "<i>No preview</i>"}</div>
+        </div>
+      </div>
+      `
+    );
   });
 }
 
-/* ================= HELPERS ================= */
+/**************** EVENTS ****************/
+projectSelect.addEventListener("change", e => {
+  loadNotebooks(e.target.value);
+});
 
-function formatPeople(ids) {
-  if (!Array.isArray(ids) || !ids.length) return "-";
-  return ids.map(id => PEOPLE_MAP[id] || id).join(", ");
-}
-
-function formatDate(d) {
-  if (!d) return "-";
-  return new Date(d).toLocaleString();
-}
-
-function escapeHtml(str) {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadPeople();
+  await loadProjects();
+});
