@@ -5,19 +5,19 @@ const listSelect = document.getElementById("listSelect");
 const body = document.getElementById("tasksBody");
 const countText = document.getElementById("countText");
 
-/* ------------------ helpers ------------------ */
+/* ---------------- helpers ---------------- */
 
 async function apiGet(path) {
   const res = await fetch(`${GAS_URL}?path=${encodeURIComponent(path)}`);
   return res.json();
 }
 
-function formatDate(d) {
-  if (!d) return "-";
-  return new Date(d).toLocaleString();
+function formatDate(v) {
+  if (!v) return "-";
+  return new Date(v).toLocaleString();
 }
 
-/* ------------------ load projects ------------------ */
+/* ---------------- load projects ---------------- */
 
 document.addEventListener("DOMContentLoaded", loadProjects);
 
@@ -26,33 +26,41 @@ async function loadProjects() {
 
   projectSelect.innerHTML = `<option value="">Select project</option>`;
   projects.forEach(p => {
-    projectSelect.innerHTML += `<option value="${p.id}">${p.title}</option>`;
+    projectSelect.innerHTML += `
+      <option value="${p.id}">${p.title}</option>
+    `;
   });
 
   projectSelect.addEventListener("change", loadTasklists);
 }
 
-/* ------------------ load tasklists ------------------ */
+/* ---------------- load tasklists ---------------- */
 
 async function loadTasklists() {
   const projectId = projectSelect.value;
+
   listSelect.disabled = true;
   listSelect.innerHTML = `<option>Loading...</option>`;
 
   if (!projectId) return;
 
   const data = await apiGet(`projects/${projectId}/todolists`);
-  const lists = data.todolists || data;
+  const lists = Array.isArray(data) ? data : data.todolists;
 
   listSelect.innerHTML = `<option value="">Select tasklist</option>`;
+
   lists.forEach(l => {
-    listSelect.innerHTML += `<option value="${l.id}">${l.name}</option>`;
+    listSelect.innerHTML += `
+      <option value="${l.id}">
+        ${l.title}
+      </option>
+    `;
   });
 
   listSelect.disabled = false;
 }
 
-/* ------------------ fetch tasks ------------------ */
+/* ---------------- fetch tasks ---------------- */
 
 async function fetchTasks() {
   body.innerHTML = "";
@@ -70,11 +78,20 @@ async function fetchTasks() {
     `projects/${projectId}/todolists/${listId}/tasks`
   );
 
-  const tasks = data.todos || [];
+  // ✅ SUPPORT BOTH RESPONSE SHAPES
+  const tasks = Array.isArray(data)
+    ? data
+    : data.todos || [];
+
   countText.textContent = `Total Tasks: ${tasks.length}`;
 
   if (!tasks.length) {
-    body.innerHTML = `<tr><td colspan="8" class="text-center text-muted">No tasks found</td></tr>`;
+    body.innerHTML = `
+      <tr>
+        <td colspan="9" class="text-center text-muted">
+          No tasks found
+        </td>
+      </tr>`;
     return;
   }
 
@@ -82,15 +99,32 @@ async function fetchTasks() {
     body.innerHTML += `
       <tr>
         <td>${t.ticket || "-"}</td>
+
         <td>
           <strong>${t.title}</strong><br>
-          <small class="text-muted">${t.list?.name || ""}</small>
+          <small class="text-muted">
+            ${t.list_name || ""}
+          </small>
         </td>
-        <td>${t.stage?.name || "-"}</td>
-        <td>${t.estimated_hours ?? 0}h ${t.estimated_mins ?? 0}m</td>
-        <td>${t.logged_hours ?? 0}h ${t.logged_mins ?? 0}m</td>
+
+        <td>${t.stage_name || "-"}</td>
+
+        <td>
+          ${t.estimated_hours ?? t.estimated_hrs ?? 0}h
+          ${t.estimated_mins ?? 0}m
+        </td>
+
+        <td>
+          ${t.logged_hours ?? 0}h
+          ${t.logged_mins ?? 0}m
+        </td>
+
         <td>${t.sub_tasks ?? 0}</td>
+
+        <td>${t.percent_progress ?? 0}%</td>
+
         <td>${formatDate(t.created_at)}</td>
+
         <td>${formatDate(t.updated_at)}</td>
       </tr>
     `;
