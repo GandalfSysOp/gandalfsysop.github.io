@@ -1,25 +1,24 @@
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzNjVt4eZjS9N2fGWFxxAD_lS9L2azpobkHjG5XxMojfYV21XrIU8mfePS7X4km0OeuhQ/exec";
 
-/*************************
- * CONFIG
-/*************************
- * GLOBAL CACHES
- *************************/
+/***********************
+ * GLOBAL LOOKUPS
+ ***********************/
 let PEOPLE_MAP = {};
 let PROJECT_MAP = {};
 let NOTEBOOK_MAP = {};
 
-/*************************
- * HELPERS
- *************************/
-function apiGet(path) {
-  return fetch(`${GAS_URL}?path=${encodeURIComponent(path)}`)
-    .then(res => {
-      if (!res.ok) throw new Error("API error");
-      return res.json();
-    });
+/***********************
+ * GENERIC API GET
+ ***********************/
+async function apiGet(path) {
+  const res = await fetch(`${GAS_URL}?path=${encodeURIComponent(path)}`);
+  if (!res.ok) throw new Error("API failed");
+  return res.json();
 }
 
+/***********************
+ * UTILITIES
+ ***********************/
 function personName(id) {
   if (!id) return "-";
   return PEOPLE_MAP[id] || `ID: ${id}`;
@@ -31,54 +30,69 @@ function formatDate(val) {
   return isNaN(d) ? "-" : d.toLocaleString();
 }
 
-/*************************
- * PRELOAD LOOKUPS
- *************************/
-async function preloadPeople() {
+/***********************
+ * PRELOAD PEOPLE
+ ***********************/
+async function loadPeople() {
   const data = await apiGet("people");
   data.forEach(p => {
     PEOPLE_MAP[p.id] = p.name;
   });
 }
 
-async function preloadProjects() {
+/***********************
+ * LOAD PROJECTS
+ ***********************/
+async function loadProjects() {
   const data = await apiGet("projects");
+
+  const projectSelect = document.getElementById("projectSelect");
+  projectSelect.innerHTML = `<option value="">Select project</option>`;
+
   data.forEach(p => {
     PROJECT_MAP[p.id] = p.title;
-  });
-
-  const select = document.getElementById("projectSelect");
-  select.innerHTML = `<option value="">Select project</option>`;
-  data.forEach(p => {
-    select.innerHTML += `<option value="${p.id}">${p.title}</option>`;
+    projectSelect.innerHTML += `
+      <option value="${p.id}">${p.title}</option>
+    `;
   });
 }
 
-/*************************
- * LOAD NOTEBOOKS
- *************************/
+/***********************
+ * LOAD NOTEBOOKS (FIXED)
+ ***********************/
 async function loadNotebooks() {
   const projectId = document.getElementById("projectSelect").value;
   const notebookSelect = document.getElementById("notebookSelect");
+  const notesContainer = document.getElementById("notesContainer");
 
+  // Reset UI
   notebookSelect.innerHTML = `<option value="">Select notebook</option>`;
-  document.getElementById("notesContainer").innerHTML = "";
+  notesContainer.innerHTML = "";
 
   if (!projectId) return;
 
-  const data = await apiGet(`projects/${projectId}/notebooks`);
-  const notebooks = data.notebooks || data;
+  const res = await apiGet(`projects/${projectId}/notebooks`);
+
+  // 🔥 CRITICAL FIX: handle both response shapes
+  const notebooks = Array.isArray(res)
+    ? res
+    : Array.isArray(res.notebooks)
+    ? res.notebooks
+    : [];
 
   NOTEBOOK_MAP = {};
+
   notebooks.forEach(nb => {
     NOTEBOOK_MAP[nb.id] = nb.title;
-    notebookSelect.innerHTML += `<option value="${nb.id}">${nb.title}</option>`;
+    notebookSelect.innerHTML += `
+      <option value="${nb.id}">${nb.title}</option>
+    `;
   });
 }
 
-/*************************
+/***********************
  * FETCH NOTES
- *************************/
+ ***********************/
 async function fetchNotes() {
   const projectId = document.getElementById("projectSelect").value;
   const notebookId = document.getElementById("notebookSelect").value;
@@ -88,21 +102,28 @@ async function fetchNotes() {
     return;
   }
 
-  const data = await apiGet(
+  const res = await apiGet(
     `projects/${projectId}/notebooks/${notebookId}/notes`
   );
 
-  renderNotes(data.notes || data);
+  const notes = Array.isArray(res)
+    ? res
+    : Array.isArray(res.notes)
+    ? res.notes
+    : [];
+
+  renderNotes(notes);
 }
 
-/*************************
+/***********************
  * RENDER NOTES
- *************************/
+ ***********************/
 function renderNotes(notes) {
   const container = document.getElementById("notesContainer");
 
-  if (!notes || !notes.length) {
-    container.innerHTML = `<div class="text-muted">No notes found</div>`;
+  if (!notes.length) {
+    container.innerHTML =
+      `<div class="text-muted">No notes found</div>`;
     return;
   }
 
@@ -128,15 +149,19 @@ function renderNotes(notes) {
     const creator = personName(n.creator?.id);
     const updatedBy = personName(n.updated_by);
     const assigned = Array.isArray(n.assigned)
-      ? n.assigned.map(id => personName(id)).join(", ")
+      ? n.assigned.map(personName).join(", ")
       : "-";
 
     html += `
       <tr>
         <td>${n.title || "-"}</td>
         <td>
-          <span style="display:inline-block;width:12px;height:12px;
-            background:${n.color || "#ccc"}"></span>
+          <span style="
+            display:inline-block;
+            width:12px;
+            height:12px;
+            background:${n.color || "#ccc"};
+          "></span>
         </td>
         <td>${n.private ? "Yes" : "No"}</td>
         <td>${creator}</td>
@@ -153,10 +178,10 @@ function renderNotes(notes) {
   container.innerHTML = html;
 }
 
-/*************************
+/***********************
  * INIT
- *************************/
+ ***********************/
 document.addEventListener("DOMContentLoaded", async () => {
-  await preloadPeople();
-  await preloadProjects();
+  await loadPeople();
+  await loadProjects();
 });
