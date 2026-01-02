@@ -1,26 +1,27 @@
-const GAS_URL = "https://script.google.com/macros/s/AKfycbzNjVt4eZjS9N2fGWFxxAD_lS9L2azpobkHjG5XxMojfYV21XrIU8mfePS7X4km0OeuhQ/exec";
-
 /***********************
- * GLOBAL LOOKUPS
+ * CONFIG
+ ***********************/
+const GAS_URL = "https://script.google.com/macros/s/AKfycbzNjVt4eZjS9N2fGWFxxAD_lS9L2azpobkHjG5XxMojfYV21XrIU8mfePS7X4km0OeuhQ/exec";
+/***********************
+ * LOOKUP MAPS
  ***********************/
 let PEOPLE_MAP = {};
 let PROJECT_MAP = {};
 let NOTEBOOK_MAP = {};
 
 /***********************
- * GENERIC API GET
+ * API HELPER
  ***********************/
 async function apiGet(path) {
   const res = await fetch(`${GAS_URL}?path=${encodeURIComponent(path)}`);
-  if (!res.ok) throw new Error("API failed");
+  if (!res.ok) throw new Error("API request failed");
   return res.json();
 }
 
 /***********************
- * UTILITIES
+ * FORMATTERS
  ***********************/
 function personName(id) {
-  if (!id) return "-";
   return PEOPLE_MAP[id] || `ID: ${id}`;
 }
 
@@ -31,11 +32,11 @@ function formatDate(val) {
 }
 
 /***********************
- * PRELOAD PEOPLE
+ * LOAD PEOPLE
  ***********************/
 async function loadPeople() {
-  const data = await apiGet("people");
-  data.forEach(p => {
+  const people = await apiGet("people");
+  people.forEach(p => {
     PEOPLE_MAP[p.id] = p.name;
   });
 }
@@ -44,36 +45,36 @@ async function loadPeople() {
  * LOAD PROJECTS
  ***********************/
 async function loadProjects() {
-  const data = await apiGet("projects");
-
+  const projects = await apiGet("projects");
   const projectSelect = document.getElementById("projectSelect");
-  projectSelect.innerHTML = `<option value="">Select project</option>`;
 
-  data.forEach(p => {
+  projectSelect.innerHTML =
+    `<option value="">Select project</option>`;
+
+  projects.forEach(p => {
     PROJECT_MAP[p.id] = p.title;
-    projectSelect.innerHTML += `
-      <option value="${p.id}">${p.title}</option>
-    `;
+    projectSelect.innerHTML +=
+      `<option value="${p.id}">${p.title}</option>`;
   });
 }
 
 /***********************
- * LOAD NOTEBOOKS (FIXED)
+ * LOAD NOTEBOOKS (🔥 FIXED)
  ***********************/
 async function loadNotebooks() {
   const projectId = document.getElementById("projectSelect").value;
   const notebookSelect = document.getElementById("notebookSelect");
   const notesContainer = document.getElementById("notesContainer");
 
-  // Reset UI
-  notebookSelect.innerHTML = `<option value="">Select notebook</option>`;
+  notebookSelect.innerHTML =
+    `<option value="">Select notebook</option>`;
   notesContainer.innerHTML = "";
 
   if (!projectId) return;
 
   const res = await apiGet(`projects/${projectId}/notebooks`);
 
-  // 🔥 CRITICAL FIX: handle both response shapes
+  // 🔒 Handle BOTH response formats
   const notebooks = Array.isArray(res)
     ? res
     : Array.isArray(res.notebooks)
@@ -84,9 +85,8 @@ async function loadNotebooks() {
 
   notebooks.forEach(nb => {
     NOTEBOOK_MAP[nb.id] = nb.title;
-    notebookSelect.innerHTML += `
-      <option value="${nb.id}">${nb.title}</option>
-    `;
+    notebookSelect.innerHTML +=
+      `<option value="${nb.id}">${nb.title}</option>`;
   });
 }
 
@@ -94,11 +94,13 @@ async function loadNotebooks() {
  * FETCH NOTES
  ***********************/
 async function fetchNotes() {
-  const projectId = document.getElementById("projectSelect").value;
-  const notebookId = document.getElementById("notebookSelect").value;
+  const projectId =
+    document.getElementById("projectSelect").value;
+  const notebookId =
+    document.getElementById("notebookSelect").value;
 
   if (!projectId || !notebookId) {
-    alert("Please select project and notebook");
+    alert("Select project and notebook");
     return;
   }
 
@@ -119,7 +121,8 @@ async function fetchNotes() {
  * RENDER NOTES
  ***********************/
 function renderNotes(notes) {
-  const container = document.getElementById("notesContainer");
+  const container =
+    document.getElementById("notesContainer");
 
   if (!notes.length) {
     container.innerHTML =
@@ -146,30 +149,23 @@ function renderNotes(notes) {
   `;
 
   notes.forEach(n => {
-    const creator = personName(n.creator?.id);
-    const updatedBy = personName(n.updated_by);
-    const assigned = Array.isArray(n.assigned)
-      ? n.assigned.map(personName).join(", ")
-      : "-";
-
     html += `
       <tr>
         <td>${n.title || "-"}</td>
         <td>
-          <span style="
-            display:inline-block;
-            width:12px;
-            height:12px;
-            background:${n.color || "#ccc"};
-          "></span>
+          <span style="display:inline-block;width:12px;height:12px;background:${n.color || "#ccc"}"></span>
         </td>
         <td>${n.private ? "Yes" : "No"}</td>
-        <td>${creator}</td>
-        <td>${assigned}</td>
+        <td>${personName(n.creator?.id)}</td>
+        <td>${
+          Array.isArray(n.assigned)
+            ? n.assigned.map(personName).join(", ")
+            : "-"
+        }</td>
         <td>${n.comments ?? 0}</td>
         <td>${formatDate(n.created_at)}</td>
         <td>${formatDate(n.updated_at)}</td>
-        <td>${updatedBy}</td>
+        <td>${personName(n.updated_by)}</td>
       </tr>
     `;
   });
@@ -179,9 +175,14 @@ function renderNotes(notes) {
 }
 
 /***********************
- * INIT
+ * INIT (🔥 THIS WAS MISSING)
  ***********************/
 document.addEventListener("DOMContentLoaded", async () => {
   await loadPeople();
   await loadProjects();
+
+  // ✅ THIS LINE FIXES YOUR ISSUE
+  document
+    .getElementById("projectSelect")
+    .addEventListener("change", loadNotebooks);
 });
