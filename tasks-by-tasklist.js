@@ -23,9 +23,13 @@ async function loadPeople() {
 }
 
 async function loadProjects() {
-  const projects = await apiGet("projects");
   const projectSelect = document.getElementById("projectSelect");
+  if (!projectSelect) {
+    console.error("❌ projectSelect not found in DOM");
+    return;
+  }
 
+  const projects = await apiGet("projects");
   projectSelect.innerHTML = `<option value="">Select project</option>`;
 
   projects.forEach(p => {
@@ -48,23 +52,35 @@ function peopleList(ids) {
 
 function decodeHTML(html) {
   if (!html) return "-";
-  const txt = document.createElement("textarea");
-  txt.innerHTML = html;
-  return txt.value;
+  const el = document.createElement("textarea");
+  el.innerHTML = html;
+  return el.value;
 }
 
 function toggle(id) {
   const row = document.getElementById(id);
+  if (!row) return;
   row.style.display = row.style.display === "none" ? "table-row" : "none";
 }
 
-/* ================= TASKLIST ================= */
+/* ================= TASKLISTS ================= */
 
 async function loadTasklists() {
-  const projectId = document.getElementById("projectSelect").value;
+  const projectSelect = document.getElementById("projectSelect");
   const tasklistSelect = document.getElementById("tasklistSelect");
 
+  if (!projectSelect) {
+    console.error("❌ projectSelect missing");
+    return;
+  }
+  if (!tasklistSelect) {
+    console.error("❌ tasklistSelect missing — CHECK HTML ID");
+    return;
+  }
+
+  const projectId = projectSelect.value;
   tasklistSelect.innerHTML = `<option value="">Select tasklist</option>`;
+
   if (!projectId) return;
 
   const lists = await apiGet(`projects/${projectId}/todolists`);
@@ -78,9 +94,14 @@ async function loadTasklists() {
 /* ================= TASKS ================= */
 
 async function fetchTasks() {
-  const projectId = document.getElementById("projectSelect").value;
-  const listId = document.getElementById("tasklistSelect").value;
+  const projectId = document.getElementById("projectSelect")?.value;
+  const listId = document.getElementById("tasklistSelect")?.value;
   const body = document.getElementById("tasksBody");
+
+  if (!body) {
+    console.error("❌ tasksBody missing");
+    return;
+  }
 
   body.innerHTML = "";
 
@@ -148,8 +169,11 @@ async function fetchTasks() {
 document.addEventListener("DOMContentLoaded", async () => {
   await loadProjects();
 
-  // 🔑 THIS WAS MISSING — THE ACTUAL FIX
-  document
-    .getElementById("projectSelect")
-    .addEventListener("change", loadTasklists);
+  const projectSelect = document.getElementById("projectSelect");
+  if (!projectSelect) {
+    console.error("❌ projectSelect not found on load");
+    return;
+  }
+
+  projectSelect.addEventListener("change", loadTasklists);
 });
