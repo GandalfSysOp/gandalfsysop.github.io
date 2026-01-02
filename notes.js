@@ -56,10 +56,15 @@ async function loadNotebooks() {
   if (!projectId) return;
 
   const res = await apiGet(`projects/${projectId}/notebooks`);
-  const notebooks = res.notebooks || [];
+
+  // 🔧 FIX: API returns ARRAY, not object
+  const notebooks = Array.isArray(res)
+    ? res
+    : res.notebooks || [];
 
   notebooks.forEach(n => {
     NOTEBOOK_MAP[n.id] = n.title;
+
     const opt = document.createElement("option");
     opt.value = n.id;
     opt.textContent = n.title;
