@@ -134,18 +134,68 @@ async function fetchNotes() {
   }
 
   notes.forEach(n => {
-    body.innerHTML += `
-      <tr>
-        <td><strong>${n.title}</strong></td>
-        <td>${n.private ? "Yes" : "No"}</td>
-        <td>${listPeople(n.assigned)}</td>
-        <td>${personName(n.creator?.id)}</td>
-        <td>${formatDate(n.created_at)}</td>
-        <td>${formatDate(n.updated_at)}</td>
-        <td>${n.comments ?? 0}</td>
-      </tr>
-    `;
-  });
+  body.innerHTML += `
+    <tr>
+      <td colspan="7">
+        <div class="card mb-3 shadow-sm">
+          <div class="card-body">
+
+            <!-- Title -->
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <h6 class="mb-0">
+                📝 ${n.title || "Untitled Note"}
+              </h6>
+              <span
+                style="
+                  width:14px;
+                  height:14px;
+                  border-radius:50%;
+                  background:${n.color || "#ccc"};
+                  display:inline-block;
+                "
+                title="Color"
+              ></span>
+            </div>
+
+            <!-- Meta -->
+            <div class="text-muted small mb-2">
+              <strong>Private:</strong> ${n.private ? "Yes" : "No"} &nbsp;|&nbsp;
+              <strong>Comments:</strong> ${n.comments ?? 0}
+            </div>
+
+            <!-- People -->
+            <div class="mb-2">
+              <div><strong>Creator:</strong> ${personName(n.creator?.id)}</div>
+              <div><strong>Assigned:</strong> ${listPeople(n.assigned)}</div>
+            </div>
+
+            <!-- Dates -->
+            <div class="mb-2 small text-muted">
+              <div><strong>Created:</strong> ${formatDate(n.created_at)}</div>
+              <div><strong>Updated:</strong> ${formatDate(n.updated_at)}</div>
+            </div>
+
+            <!-- Preview -->
+            ${
+              n.preview
+                ? `
+                <div class="mt-3">
+                  <strong>Preview:</strong>
+                  <div class="border rounded p-2 bg-light mt-1"
+                       style="white-space:pre-wrap">
+                    ${n.preview}
+                  </div>
+                </div>
+              `
+                : ""
+            }
+
+          </div>
+        </div>
+      </td>
+    </tr>
+  `;
+});
 }
 
 /* ================= INIT ================= */
