@@ -1,5 +1,5 @@
 const BASE_URL = "https://script.google.com/macros/s/AKfycbzNjVt4eZjS9N2fGWFxxAD_lS9L2azpobkHjG5XxMojfYV21XrIU8mfePS7X4km0OeuhQ/exec";
-/* ================= LOOKUP MAPS ================= */
+/* ================= LOOKUPS ================= */
 
 let PEOPLE_MAP = {};
 let PROJECT_MAP = {};
@@ -24,12 +24,14 @@ async function loadPeople() {
 
 async function loadProjects() {
   const projects = await apiGet("projects");
-  const select = document.getElementById("projectSelect");
+  const projectSelect = document.getElementById("projectSelect");
 
-  select.innerHTML = `<option value="">Select project</option>`;
+  projectSelect.innerHTML = `<option value="">Select project</option>`;
+
   projects.forEach(p => {
     PROJECT_MAP[p.id] = p.title;
-    select.innerHTML += `<option value="${p.id}">${p.title}</option>`;
+    projectSelect.innerHTML +=
+      `<option value="${p.id}">${p.title}</option>`;
   });
 }
 
@@ -60,18 +62,20 @@ function toggle(id) {
 
 async function loadTasklists() {
   const projectId = document.getElementById("projectSelect").value;
-  const select = document.getElementById("tasklistSelect");
+  const tasklistSelect = document.getElementById("tasklistSelect");
 
-  select.innerHTML = `<option value="">Select tasklist</option>`;
+  tasklistSelect.innerHTML = `<option value="">Select tasklist</option>`;
   if (!projectId) return;
 
   const lists = await apiGet(`projects/${projectId}/todolists`);
+
   lists.forEach(l => {
-    select.innerHTML += `<option value="${l.id}">${l.title}</option>`;
+    tasklistSelect.innerHTML +=
+      `<option value="${l.id}">${l.title}</option>`;
   });
 }
 
-/* ================= FETCH TASKS ================= */
+/* ================= TASKS ================= */
 
 async function fetchTasks() {
   const projectId = document.getElementById("projectSelect").value;
@@ -81,7 +85,7 @@ async function fetchTasks() {
   body.innerHTML = "";
 
   if (!projectId || !listId) {
-    alert("Select project and tasklist");
+    alert("Please select project and tasklist");
     return;
   }
 
@@ -92,7 +96,6 @@ async function fetchTasks() {
   );
 
   const tasks = res.todos || res;
-
   document.getElementById("countText").textContent =
     `Total Tasks: ${tasks.length}`;
 
@@ -107,7 +110,7 @@ async function fetchTasks() {
       <tr>
         <td class="expand" onclick="toggle('exp-${t.id}')">+</td>
         <td>${t.ticket}</td>
-        <td style="max-width:280px;white-space:normal">${t.title}</td>
+        <td style="max-width:300px">${t.title}</td>
         <td>${t.stage_name || "-"}</td>
         <td>${t.percent_progress || 0}%</td>
         <td>${t.completed}</td>
@@ -119,72 +122,20 @@ async function fetchTasks() {
 
       <tr id="exp-${t.id}" style="display:none;background:#f8fafc">
         <td colspan="10">
-          <div class="row g-3 p-3 small">
+          <div class="p-3 small">
+            <b>Description</b><br>
+            ${decodeHTML(t.description)}<br><br>
 
-            <div class="col-md-3"><b>Project</b><br>${t.project_name}</div>
-            <div class="col-md-3"><b>List</b><br>${t.list_name}</div>
-            <div class="col-md-3"><b>Workflow</b><br>${t.workflow_name}</div>
-            <div class="col-md-3"><b>Stage</b><br>${t.stage_name}</div>
-
-            <hr>
-
-            <div class="col-md-3"><b>Start</b><br>${t.StartDate || t.start_date}</div>
-            <div class="col-md-3"><b>End</b><br>${t.EndDate || t.due_date}</div>
-            <div class="col-md-3"><b>Baseline Start</b><br>${t.BaselineStartDate}</div>
-            <div class="col-md-3"><b>Baseline End</b><br>${t.BaselineEndDate}</div>
-
-            <hr>
-
-            <div class="col-md-3"><b>Assigned</b><br>${peopleList(t.assigned)}</div>
-            <div class="col-md-3"><b>Creator</b><br>${person(t.creator)}</div>
-            <div class="col-md-3"><b>Updated By</b><br>${person(t.updated_by)}</div>
-            <div class="col-md-3"><b>Parent ID</b><br>${t.parent_id ?? "-"}</div>
-
-            <hr>
-
-            <div class="col-md-3"><b>Estimated</b><br>
-              ${t.estimated_hours ?? t.estimated_hrs ?? 0}h ${t.estimated_mins ?? 0}m
-            </div>
-
-            <div class="col-md-3"><b>Logged</b><br>
-              ${t.logged_hours ?? 0}h ${t.logged_mins ?? 0}m
-            </div>
-
-            <div class="col-md-3"><b>Archived</b><br>${t.archived}</div>
-            <div class="col-md-3"><b>Completed</b><br>${t.completed}</div>
-
-            <hr>
-
-            <div class="col-md-6">
-              <b>Description</b>
-              <div class="border rounded p-2 bg-white">
-                ${decodeHTML(t.description)}
-              </div>
-            </div>
-
-            <div class="col-md-6">
-              <b>Task History</b>
-              <div class="border rounded p-2 bg-white" style="max-height:180px;overflow:auto">
-                ${t.task_history || "-"}
-              </div>
-            </div>
-
-            <hr>
-
-            <div class="col-md-6">
-              <b>Custom Fields</b>
-              <pre class="bg-dark text-light p-2 rounded small">
-${JSON.stringify(t.custom_fields, null, 2)}
-              </pre>
-            </div>
-
-            <div class="col-md-6">
-              <b>Recurrence</b>
-              <pre class="bg-dark text-light p-2 rounded small">
-${JSON.stringify(t.rrule, null, 2)}
-              </pre>
-            </div>
-
+            <b>Assigned:</b> ${peopleList(t.assigned)}<br>
+            <b>Creator:</b> ${person(t.creator)}<br>
+            <b>Updated By:</b> ${person(t.updated_by)}<br>
+            <b>Start:</b> ${t.StartDate || t.start_date}<br>
+            <b>End:</b> ${t.EndDate || t.due_date}<br>
+            <b>Baseline:</b> ${t.BaselineStartDate} → ${t.BaselineEndDate}<br>
+            <b>Estimate:</b> ${t.estimated_hours ?? t.estimated_hrs ?? 0}h ${t.estimated_mins ?? 0}m<br>
+            <b>Logged:</b> ${t.logged_hours ?? 0}h ${t.logged_mins ?? 0}m<br>
+            <b>Archived:</b> ${t.archived}<br>
+            <b>History:</b><br>${t.task_history || "-"}
           </div>
         </td>
       </tr>
@@ -194,4 +145,11 @@ ${JSON.stringify(t.rrule, null, 2)}
 
 /* ================= INIT ================= */
 
-document.addEventListener("DOMContentLoaded", loadProjects);
+document.addEventListener("DOMContentLoaded", async () => {
+  await loadProjects();
+
+  // 🔑 THIS WAS MISSING — THE ACTUAL FIX
+  document
+    .getElementById("projectSelect")
+    .addEventListener("change", loadTasklists);
+});
