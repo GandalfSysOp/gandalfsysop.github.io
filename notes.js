@@ -2,8 +2,7 @@
  * CONFIG
  ***********************/
 const GAS_URL = "https://script.google.com/macros/s/AKfycbzNjVt4eZjS9N2fGWFxxAD_lS9L2azpobkHjG5XxMojfYV21XrIU8mfePS7X4km0OeuhQ/exec";
-
-/* ================= LOOKUP MAPS ================= */
+/* ================= LOOKUPS ================= */
 
 let PEOPLE_MAP = {};
 let PROJECT_MAP = {};
@@ -16,7 +15,7 @@ async function apiGet(path) {
   return res.json();
 }
 
-/* ================= PRELOAD LOOKUPS ================= */
+/* ================= PRELOAD ================= */
 
 async function loadPeople() {
   if (Object.keys(PEOPLE_MAP).length) return;
@@ -67,14 +66,11 @@ async function loadNotebooks() {
 
   const res = await apiGet(`projects/${projectId}/notebooks`);
 
-  // ✅ FIX: normalize response
   const notebooks = Array.isArray(res)
     ? res
     : Array.isArray(res.notebooks)
     ? res.notebooks
     : [];
-
-  if (!notebooks.length) return;
 
   notebooks.forEach(nb => {
     notebookSelect.innerHTML += `
@@ -90,13 +86,25 @@ async function loadNotebooks() {
 /* ================= NOTES ================= */
 
 async function fetchNotes() {
-  const projectId = document.getElementById("projectSelect").value;
-  const notebookId = document.getElementById("notebookSelect").value;
-  const body = document.getElementById("notesBody");
-  const count = document.getElementById("countText");
+  const projectId = document.getElementById("projectSelect")?.value;
+  const notebookId = document.getElementById("notebookSelect")?.value;
+
+  const body =
+    document.getElementById("notesBody") ||
+    document.getElementById("notesContainer");
+
+  const count =
+    document.getElementById("countText") ||
+    document.getElementById("notesCount");
+
+  if (!body) {
+    console.error("❌ Notes container not found in HTML");
+    alert("Notes container missing in HTML");
+    return;
+  }
 
   body.innerHTML = "";
-  count.textContent = "";
+  if (count) count.textContent = "";
 
   if (!projectId || !notebookId) {
     alert("Select both project and notebook");
@@ -113,7 +121,7 @@ async function fetchNotes() {
     ? res
     : [];
 
-  count.textContent = `Total Notes: ${notes.length}`;
+  if (count) count.textContent = `Total Notes: ${notes.length}`;
 
   if (!notes.length) {
     body.innerHTML = `
@@ -148,5 +156,5 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document
     .getElementById("projectSelect")
-    .addEventListener("change", loadNotebooks);
+    ?.addEventListener("change", loadNotebooks);
 });
