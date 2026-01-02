@@ -89,6 +89,9 @@ async function loadTasklists() {
     tasklistSelect.innerHTML +=
       `<option value="${l.id}">${l.title}</option>`;
   });
+
+  tasklistSelect.disabled = false;
+
 }
 
 /* ================= TASKS ================= */
